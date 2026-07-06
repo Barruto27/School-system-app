@@ -1,26 +1,69 @@
 import { useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import { getFileBlob, updateFileBlob } from '../storage/fileRepo';
 
 interface NoteViewProps {
   fileId: string;
   fileName: string;
-  onBack: () => void;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
 
-export function NoteView({ fileId, fileName, onBack }: NoteViewProps) {
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export function NoteView({ fileId, fileName }: NoteViewProps) {
   const [loaded, setLoaded] = useState(false);
   const saveTimeout = useRef<number | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Image.configure({ inline: false, allowBase64: true }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+    ],
     content: '',
     autofocus: false,
     editorProps: {
       attributes: { class: 'note-editor' },
+      handlePaste: (view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+        if (files.length === 0) return false;
+        event.preventDefault();
+        files.forEach(async (file) => {
+          const src = await fileToDataUrl(file);
+          const { schema } = view.state;
+          const node = schema.nodes.image.create({ src });
+          const tr = view.state.tr.replaceSelectionWith(node);
+          view.dispatch(tr);
+        });
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith('image/'));
+        if (files.length === 0) return false;
+        event.preventDefault();
+        files.forEach(async (file) => {
+          const src = await fileToDataUrl(file);
+          const { schema } = view.state;
+          const node = schema.nodes.image.create({ src });
+          const tr = view.state.tr.replaceSelectionWith(node);
+          view.dispatch(tr);
+        });
+        return true;
+      },
     },
     onUpdate: ({ editor }) => {
       if (saveTimeout.current) window.clearTimeout(saveTimeout.current);
@@ -61,6 +104,11 @@ export function NoteView({ fileId, fileName, onBack }: NoteViewProps) {
 
   if (!editor) return null;
 
+  const insertImage = async (file: File) => {
+    const src = await fileToDataUrl(file);
+    editor.chain().focus().setImage({ src }).run();
+  };
+
   const buttons: { label: string; title: string; action: () => void; active: () => boolean }[] = [
     {
       label: 'B',
@@ -99,10 +147,22 @@ export function NoteView({ fileId, fileName, onBack }: NoteViewProps) {
       active: () => editor.isActive('orderedList'),
     },
     {
+      label: '☑',
+      title: 'Checklist',
+      action: () => editor.chain().focus().toggleTaskList().run(),
+      active: () => editor.isActive('taskList'),
+    },
+    {
       label: '"',
       title: 'Quote',
       action: () => editor.chain().focus().toggleBlockquote().run(),
       active: () => editor.isActive('blockquote'),
+    },
+    {
+      label: '</>',
+      title: 'Code block',
+      action: () => editor.chain().focus().toggleCodeBlock().run(),
+      active: () => editor.isActive('codeBlock'),
     },
   ];
 
@@ -110,9 +170,6 @@ export function NoteView({ fileId, fileName, onBack }: NoteViewProps) {
     <>
       <div className="toolbar">
         <div className="toolbar-group">
-          <button onClick={onBack} title="Back to files">
-            Files
-          </button>
           <span className="toolbar-filename" title={fileName}>
             {fileName}
           </span>
@@ -123,6 +180,20 @@ export function NoteView({ fileId, fileName, onBack }: NoteViewProps) {
               {b.label}
             </button>
           ))}
+          <button onClick={() => imageInputRef.current?.click()} title="Insert image">
+            🖼
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) insertImage(file);
+              e.target.value = '';
+            }}
+          />
         </div>
       </div>
       <div className="main-area">

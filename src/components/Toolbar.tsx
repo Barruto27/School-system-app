@@ -1,10 +1,8 @@
 import type { AnnotationTool } from '../annotations/types';
-
-const COLORS = ['#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#a855f7', '#111827'];
+import { ColorStrokeGroup } from './ColorStrokeGroup';
 
 interface ToolbarProps {
   fileName: string;
-  onBack: () => void;
   tool: AnnotationTool;
   onToolChange: (tool: AnnotationTool) => void;
   color: string;
@@ -24,7 +22,6 @@ interface ToolbarProps {
 
 export function Toolbar({
   fileName,
-  onBack,
   tool,
   onToolChange,
   color,
@@ -52,9 +49,6 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-group">
-        <button onClick={onBack} title="Back to files">
-          Files
-        </button>
         <span className="toolbar-filename" title={fileName}>
           {fileName}
         </span>
@@ -76,26 +70,12 @@ export function Toolbar({
         ))}
       </div>
 
-      <div className="toolbar-group">
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            className={`color-swatch ${color === c ? 'active' : ''}`}
-            style={{ background: c }}
-            onClick={() => onColorChange(c)}
-            aria-label={`Color ${c}`}
-          />
-        ))}
-        <input
-          type="range"
-          min={0.002}
-          max={0.03}
-          step={0.001}
-          value={strokeWidth}
-          onChange={(e) => onStrokeWidthChange(Number(e.target.value))}
-          title="Stroke width"
-        />
-      </div>
+      <ColorStrokeGroup
+        color={color}
+        onColorChange={onColorChange}
+        strokeWidth={strokeWidth}
+        onStrokeWidthChange={onStrokeWidthChange}
+      />
 
       <div className="toolbar-group">
         <button onClick={onZoomOut} title="Zoom out">

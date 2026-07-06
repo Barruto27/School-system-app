@@ -1,10 +1,12 @@
-import { FONTS, THEMES, type FontName, type ThemeName } from '../theme';
+import { ACCENT_PRESETS, FONTS, THEMES, type FontName, type ThemeName } from '../theme';
 
 interface SettingsPanelProps {
   theme: ThemeName;
   font: FontName;
+  accent: string | null;
   onThemeChange: (theme: ThemeName) => void;
   onFontChange: (font: FontName) => void;
+  onAccentChange: (accent: string | null) => void;
   onClose: () => void;
 }
 
@@ -15,7 +17,15 @@ const THEME_SWATCH: Record<ThemeName, string> = {
   gray: '#c9c9cd',
 };
 
-export function SettingsPanel({ theme, font, onThemeChange, onFontChange, onClose }: SettingsPanelProps) {
+export function SettingsPanel({
+  theme,
+  font,
+  accent,
+  onThemeChange,
+  onFontChange,
+  onAccentChange,
+  onClose,
+}: SettingsPanelProps) {
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
@@ -39,6 +49,33 @@ export function SettingsPanel({ theme, font, onThemeChange, onFontChange, onClos
                 {t.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>Accent Color</h3>
+          <div className="accent-options">
+            {ACCENT_PRESETS.map((c) => (
+              <button
+                key={c}
+                className={`accent-swatch ${accent === c ? 'active' : ''}`}
+                style={{ background: c }}
+                onClick={() => onAccentChange(c)}
+                aria-label={`Accent ${c}`}
+              />
+            ))}
+            <label className="accent-swatch accent-swatch-custom" title="Custom color">
+              <input
+                type="color"
+                value={accent ?? '#ff6a4d'}
+                onChange={(e) => onAccentChange(e.target.value)}
+              />
+            </label>
+            {accent && (
+              <button className="accent-reset" onClick={() => onAccentChange(null)}>
+                Reset
+              </button>
+            )}
           </div>
         </div>
 

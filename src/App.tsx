@@ -33,7 +33,36 @@ import {
   setFileIcon,
   setFolderIcon,
 } from './storage/fileRepo';
-import { applyFont, applyTheme, loadFont, loadTheme, type FontName, type ThemeName } from './theme';
+import {
+  applyAccent,
+  applyFont,
+  applyTheme,
+  loadAccent,
+  loadFont,
+  loadTheme,
+  resetAccent,
+  type FontName,
+  type ThemeName,
+} from './theme';
+
+export interface RecentFile {
+  id: string;
+  name: string;
+  kind: FileEntry['kind'];
+  icon?: string;
+}
+
+const RECENT_KEY = 'pkos:recentFiles';
+const MAX_RECENTS = 6;
+
+function loadRecents(): RecentFile[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 interface OpenFile {
   id: string;
@@ -107,7 +136,7 @@ function ExportButtonHandler({ file }: { file: OpenFile }) {
   return null;
 }
 
-function ViewerView({ file, onBack }: { file: OpenFile; onBack: () => void }) {
+function ViewerView({ file }: { file: OpenFile }) {
   const [tool, setTool] = useState<AnnotationTool>('select');
   const [color, setColor] = useState('#ef4444');
   const [strokeWidth, setStrokeWidth] = useState(0.006);
@@ -183,7 +212,6 @@ function ViewerView({ file, onBack }: { file: OpenFile; onBack: () => void }) {
     <>
       <Toolbar
         fileName={file.name}
-        onBack={onBack}
         tool={tool}
         onToolChange={setTool}
         color={color}
@@ -248,6 +276,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeName>(loadTheme);
   const [font, setFont] = useState<FontName>(loadFont);
+  const [accent, setAccent] = useState<string | null>(loadAccent);
+  const [recentFiles, setRecentFiles] = useState<RecentFile[]>(loadRecents);
 
   useEffect(() => {
     applyTheme(theme);
@@ -256,6 +286,11 @@ export default function App() {
   useEffect(() => {
     applyFont(font);
   }, [font]);
+
+  useEffect(() => {
+    if (accent) applyAccent(accent);
+    else resetAccent();
+  }, [accent]);
 
   const refreshTopLevel = useCallback(() => {
     listFolders(ROOT_ID).then(setTopFolders);
@@ -271,6 +306,17 @@ export default function App() {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w));
   };
 
+  const pushRecent = useCallback((file: FileEntry) => {
+    setRecentFiles((prev) => {
+      const next = [
+        { id: file.id, name: file.name, kind: file.kind, icon: file.icon },
+        ...prev.filter((r) => r.id !== file.id),
+      ].slice(0, MAX_RECENTS);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const handleOpenFile = async (file: FileEntry, blob: Blob) => {
     if (file.kind === 'pdf') {
       const data = await blob.arrayBuffer();
@@ -279,13 +325,18 @@ export default function App() {
       setOpenDoc({ kind: 'note', id: file.id, name: file.name });
     } else if (file.kind === 'canvas') {
       setOpenDoc({ kind: 'canvas', id: file.id, name: file.name });
+    } else {
+      return;
     }
+    pushRecent(file);
   };
 
   const handleOpenPage = async (file: FileEntry) => {
     const blob = await getFileBlob(file.id);
     if (blob) handleOpenFile(file, blob);
   };
+
+  const handleOpenRecent = (recent: RecentFile) => handleOpenPage(recent as FileEntry);
 
   const onBack = () => setOpenDoc(null);
 
@@ -335,63 +386,102 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const showChrome = !openDoc;
+  const [docMounted, setDocMounted] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
+  const [renderedDoc, setRenderedDoc] = useState<OpenDoc | null>(null);
+
+  useEffect(() => {
+    if (openDoc) {
+      setRenderedDoc(openDoc);
+      setDocMounted(true);
+      const raf = requestAnimationFrame(() => setDocOpen(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setDocOpen(false);
+    const t = window.setTimeout(() => {
+      setDocMounted(false);
+      setRenderedDoc(null);
+    }, 340);
+    return () => window.clearTimeout(t);
+  }, [openDoc]);
+
+  const navKey = nav.type === 'home' ? 'home' : `folder:${nav.id}`;
 
   return (
     <div className="app">
       <div className="app-body">
-        {showChrome && (
-          <AppSidebar
-            topFolders={topFolders}
-            topPages={topPages}
-            nav={nav}
-            onSelectHome={() => setNav({ type: 'home' })}
-            onSelectFolder={(id) => setNav({ type: 'folder', id })}
-            onOpenPage={handleOpenPage}
-            onCreateFolder={handleNewFolderAtRoot}
-            onUpload={() => fileInputRef.current?.click()}
-            onNewNote={handleNewNoteAtRoot}
-            onNewCanvas={handleNewCanvasAtRoot}
-            onRenameItem={handleRenameItem}
-            onDeleteItem={handleDeleteItem}
-            onSetIcon={handleSetIcon}
-            onMoveIntoFolder={handleMoveIntoFolder}
-            width={sidebarWidth}
-            onWidthChange={handleWidthChange}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-        )}
+        <AppSidebar
+          topFolders={topFolders}
+          topPages={topPages}
+          nav={nav}
+          onSelectHome={() => setNav({ type: 'home' })}
+          onSelectFolder={(id) => setNav({ type: 'folder', id })}
+          onOpenPage={handleOpenPage}
+          onCreateFolder={handleNewFolderAtRoot}
+          onUpload={() => fileInputRef.current?.click()}
+          onNewNote={handleNewNoteAtRoot}
+          onNewCanvas={handleNewCanvasAtRoot}
+          onRenameItem={handleRenameItem}
+          onDeleteItem={handleDeleteItem}
+          onSetIcon={handleSetIcon}
+          onMoveIntoFolder={handleMoveIntoFolder}
+          width={sidebarWidth}
+          onWidthChange={handleWidthChange}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
         <div className="app-main">
-          {showChrome && nav.type === 'home' && (
-            <HomeView
-              onNewNote={handleNewNoteAtRoot}
-              onNewCanvas={handleNewCanvasAtRoot}
-              onUpload={() => fileInputRef.current?.click()}
-            />
-          )}
-          {showChrome && nav.type === 'folder' && (
-            <FileBrowser
-              folderId={nav.id}
-              onNavigate={(id) => setNav({ type: 'folder', id })}
-              onOpenFile={handleOpenFile}
-              onLibraryChanged={refreshTopLevel}
-            />
-          )}
-          {openDoc?.kind === 'pdf' && (
-            <ViewerView file={{ id: openDoc.id, name: openDoc.name, data: openDoc.data }} onBack={onBack} />
-          )}
-          {openDoc?.kind === 'note' && <NoteView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
-          {openDoc?.kind === 'canvas' && <CanvasView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
+          <div className="app-content">
+            <div className="browse-pane">
+              <div key={navKey} className="browse-pane-content">
+                {nav.type === 'home' && (
+                  <HomeView
+                    onNewNote={handleNewNoteAtRoot}
+                    onNewCanvas={handleNewCanvasAtRoot}
+                    onUpload={() => fileInputRef.current?.click()}
+                    onCreateFolder={handleNewFolderAtRoot}
+                    recentFiles={recentFiles}
+                    onOpenRecent={handleOpenRecent}
+                  />
+                )}
+                {nav.type === 'folder' && (
+                  <FileBrowser
+                    folderId={nav.id}
+                    onNavigate={(id) => setNav({ type: 'folder', id })}
+                    onOpenFile={handleOpenFile}
+                    onLibraryChanged={refreshTopLevel}
+                  />
+                )}
+              </div>
+            </div>
+            {docMounted && renderedDoc && (
+              <div className={`doc-pane ${docOpen ? 'open' : ''}`}>
+                <button className="doc-pane-tab" onClick={onBack} title="Back to files">
+                  ❮
+                </button>
+                <div className="doc-pane-inner">
+                  {renderedDoc.kind === 'pdf' && (
+                    <ViewerView file={{ id: renderedDoc.id, name: renderedDoc.name, data: renderedDoc.data }} />
+                  )}
+                  {renderedDoc.kind === 'note' && <NoteView fileId={renderedDoc.id} fileName={renderedDoc.name} />}
+                  {renderedDoc.kind === 'canvas' && (
+                    <CanvasView fileId={renderedDoc.id} fileName={renderedDoc.name} />
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       {settingsOpen && (
         <SettingsPanel
           theme={theme}
           font={font}
+          accent={accent}
           onThemeChange={setTheme}
           onFontChange={setFont}
+          onAccentChange={setAccent}
           onClose={() => setSettingsOpen(false)}
         />
       )}
