@@ -8,32 +8,38 @@ import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
 import { PageView } from './components/PageView';
 import { FindBar } from './components/FindBar';
+import { FileBrowser } from './components/FileBrowser';
 import { exportAnnotatedPdf } from './export/exportPdf';
 
 interface OpenFile {
+  id: string;
   name: string;
-  key: string;
   data: ArrayBuffer;
 }
 
 function ViewerBody({
-  file,
+  data,
   scale,
   tool,
   color,
   strokeWidth,
   onPageEls,
   matchesForPage,
+  onDocReady,
 }: {
-  file: OpenFile;
+  data: ArrayBuffer;
   scale: number;
   tool: AnnotationTool;
   color: string;
   strokeWidth: number;
   onPageEls: (pageIndex: number, el: HTMLDivElement | null) => void;
   matchesForPage: (pageIndex: number) => { x: number; y: number; w: number; h: number }[];
+  onDocReady: (doc: ReturnType<typeof usePdfDocument>['doc'], numPages: number) => void;
 }) {
-  const { doc, numPages } = usePdfDocument(file.data);
+  const { doc, numPages } = usePdfDocument(data);
+  useEffect(() => {
+    onDocReady(doc, numPages);
+  }, [doc, numPages, onDocReady]);
   if (!doc) return <div className="loading">Loading PDF...</div>;
   return (
     <>
@@ -72,30 +78,20 @@ function ExportButtonHandler({ file }: { file: OpenFile }) {
   return null;
 }
 
-export default function App() {
-  const [file, setFile] = useState<OpenFile | null>(null);
+function ViewerView({ file, onBack }: { file: OpenFile; onBack: () => void }) {
   const [tool, setTool] = useState<AnnotationTool>('select');
   const [color, setColor] = useState('#ef4444');
   const [strokeWidth, setStrokeWidth] = useState(0.006);
   const [scale, setScale] = useState(1.2);
   const [currentPage, setCurrentPage] = useState(1);
   const [findOpen, setFindOpen] = useState(false);
+  const [doc, setDoc] = useState<ReturnType<typeof usePdfDocument>['doc']>(null);
+  const [numPages, setNumPages] = useState(0);
 
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const pageElsRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { doc, numPages } = usePdfDocument(file?.data ?? null);
   const search = useSearch(doc, numPages);
-
-  const handleOpenFile = () => fileInputRef.current?.click();
-
-  const handleFileChosen = async (f: File) => {
-    const data = await f.arrayBuffer();
-    setFile({ name: f.name, key: `${f.name}:${f.size}:${f.lastModified}`, data });
-    setCurrentPage(1);
-    pageElsRef.current.clear();
-  };
 
   const registerPageEl = useCallback((pageIndex: number, el: HTMLDivElement | null) => {
     if (el) pageElsRef.current.set(pageIndex, el);
@@ -144,27 +140,21 @@ export default function App() {
     if (active) scrollToPage(active.pageIndex);
   }, [search.activeIndex, search.matches, scrollToPage]);
 
-  const docKey = file?.key ?? 'none';
-
   const exportHandler = async () => {
     const fn = (window as unknown as { __exportCurrent?: () => Promise<void> }).__exportCurrent;
     if (fn) await fn();
   };
 
+  const handleDocReady = useCallback((d: typeof doc, n: number) => {
+    setDoc(d);
+    setNumPages(n);
+  }, []);
+
   return (
-    <div className="app">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/pdf"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleFileChosen(f);
-          e.target.value = '';
-        }}
-      />
+    <>
       <Toolbar
+        fileName={file.name}
+        onBack={onBack}
         tool={tool}
         onToolChange={setTool}
         color={color}
@@ -178,12 +168,10 @@ export default function App() {
         page={currentPage}
         numPages={numPages}
         onPageChange={handlePageChange}
-        onOpenFile={handleOpenFile}
         onExport={exportHandler}
         onToggleFind={() => setFindOpen((v) => !v)}
-        hasDoc={!!file}
       />
-      {findOpen && file && (
+      {findOpen && (
         <FindBar
           query={search.query}
           onQueryChange={search.search}
@@ -195,32 +183,42 @@ export default function App() {
         />
       )}
       <div className="main-area">
-        {file && doc && (
-          <Sidebar doc={doc} numPages={numPages} currentPage={currentPage} onNavigate={scrollToPage} />
-        )}
+        {doc && <Sidebar doc={doc} numPages={numPages} currentPage={currentPage} onNavigate={scrollToPage} />}
         <div className="viewer-scroll" ref={scrollContainerRef}>
-          {!file && (
-            <div className="empty-state">
-              <p>Open a PDF to start viewing and annotating.</p>
-              <button onClick={handleOpenFile}>Open PDF</button>
-            </div>
-          )}
-          {file && (
-            <AnnotationProvider docKey={docKey}>
-              <ExportButtonHandler file={file} />
-              <ViewerBody
-                file={file}
-                scale={scale}
-                tool={tool}
-                color={color}
-                strokeWidth={strokeWidth}
-                onPageEls={registerPageEl}
-                matchesForPage={matchesForPage}
-              />
-            </AnnotationProvider>
-          )}
+          <AnnotationProvider docKey={file.id}>
+            <ExportButtonHandler file={file} />
+            <ViewerBody
+              data={file.data}
+              scale={scale}
+              tool={tool}
+              color={color}
+              strokeWidth={strokeWidth}
+              onPageEls={registerPageEl}
+              matchesForPage={matchesForPage}
+              onDocReady={handleDocReady}
+            />
+          </AnnotationProvider>
         </div>
       </div>
+    </>
+  );
+}
+
+export default function App() {
+  const [file, setFile] = useState<OpenFile | null>(null);
+
+  const handleOpenPdf = async (fileId: string, name: string, blob: Blob) => {
+    const data = await blob.arrayBuffer();
+    setFile({ id: fileId, name, data });
+  };
+
+  return (
+    <div className="app">
+      {file ? (
+        <ViewerView file={file} onBack={() => setFile(null)} />
+      ) : (
+        <FileBrowser onOpenPdf={handleOpenPdf} />
+      )}
     </div>
   );
 }

@@ -5,6 +5,12 @@ import type { Annotation } from './types';
 interface State {
   byId: Record<string, Annotation>;
   order: string[];
+  /** False until the load effect has hydrated this docKey's saved annotations.
+   * The persist effect must not write while this is false — otherwise it
+   * clobbers the on-disk data with the reducer's empty initial state before
+   * the load has had a chance to apply (a real race, worse under StrictMode's
+   * dev-only double-invocation of effects). */
+  loaded: boolean;
 }
 
 type Action =
@@ -23,10 +29,11 @@ function reducer(state: State, action: Action): State {
         byId[a.id] = a;
         order.push(a.id);
       }
-      return { byId, order };
+      return { byId, order, loaded: true };
     }
     case 'add':
       return {
+        ...state,
         byId: { ...state.byId, [action.annotation.id]: action.annotation },
         order: [...state.order, action.annotation.id],
       };
@@ -40,10 +47,10 @@ function reducer(state: State, action: Action): State {
     }
     case 'remove': {
       const { [action.id]: _removed, ...rest } = state.byId;
-      return { byId: rest, order: state.order.filter((id) => id !== action.id) };
+      return { ...state, byId: rest, order: state.order.filter((id) => id !== action.id) };
     }
     case 'clear':
-      return { byId: {}, order: [] };
+      return { ...state, byId: {}, order: [] };
     default:
       return state;
   }
@@ -65,7 +72,7 @@ function storageKey(docKey: string) {
 }
 
 export function AnnotationProvider({ docKey, children }: { docKey: string; children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { byId: {}, order: [] });
+  const [state, dispatch] = useReducer(reducer, { byId: {}, order: [], loaded: false });
 
   useEffect(() => {
     const raw = localStorage.getItem(storageKey(docKey));
@@ -82,6 +89,7 @@ export function AnnotationProvider({ docKey, children }: { docKey: string; child
   }, [docKey]);
 
   useEffect(() => {
+    if (!state.loaded) return;
     const annotations = state.order.map((id) => state.byId[id]);
     localStorage.setItem(storageKey(docKey), JSON.stringify(annotations));
   }, [docKey, state]);
