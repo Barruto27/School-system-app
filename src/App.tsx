@@ -441,6 +441,7 @@ export default function App() {
           topFolders={topFolders}
           topPages={topPages}
           nav={nav}
+          activeTabId={activeTabId}
           refreshSignal={libraryVersion}
           onSelectHome={() => goToBrowse({ type: 'home' })}
           onSelectFolder={(id) => goToBrowse({ type: 'folder', id })}

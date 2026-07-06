@@ -11,6 +11,7 @@ interface NavTreeRowProps {
   item: NavItem;
   depth: number;
   nav: Nav;
+  activeTabId: string | null;
   refreshSignal: number;
   onSelectFolder: (id: string) => void;
   onOpenPage: (file: FileEntry) => void;
@@ -25,6 +26,7 @@ export function NavTreeRow({
   item,
   depth,
   nav,
+  activeTabId,
   refreshSignal,
   onSelectFolder,
   onOpenPage,
@@ -43,6 +45,7 @@ export function NavTreeRow({
 
   const isFolder = item.type === 'folder';
   const isSelected = isFolder && nav.type === 'folder' && nav.id === item.data.id;
+  const isActiveFile = !isFolder && activeTabId === item.data.id;
   const icon = item.data.icon ?? (isFolder ? '📁' : KIND_ICON[(item.data as FileEntry).kind]);
 
   useEffect(() => {
@@ -108,7 +111,6 @@ export function NavTreeRow({
         {isFolder && (
           <button
             className={`tree-chevron ${expanded ? 'expanded' : ''}`}
-            style={{ marginLeft: depth * 16 }}
             onClick={(e) => {
               e.stopPropagation();
               setExpanded((v) => !v);
@@ -122,7 +124,6 @@ export function NavTreeRow({
           <input
             autoFocus
             className="nav-create-input"
-            style={{ marginLeft: isFolder ? 0 : depth * 16 + 16 }}
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
@@ -134,10 +135,9 @@ export function NavTreeRow({
         ) : (
           <button
             className={`nav-item ${isSelected ? 'selected' : ''}`}
-            style={{ paddingLeft: isFolder ? 8 : depth * 16 + 16 }}
             onClick={() => (isFolder ? onSelectFolder(item.data.id) : onOpenPage(item.data as FileEntry))}
           >
-            {icon} <span className="nav-item-label">{item.data.name}</span>
+            {icon} <span className={`nav-item-label ${isActiveFile ? 'active-file' : ''}`}>{item.data.name}</span>
           </button>
         )}
         <div className="nav-row-actions">
@@ -186,17 +186,14 @@ export function NavTreeRow({
       {isFolder && (
         <div className={`tree-children ${expanded ? 'expanded' : ''}`}>
           <div className="tree-children-inner">
-            {children && childItems.length === 0 && (
-              <div className="tree-empty" style={{ paddingLeft: (depth + 1) * 16 + 16 }}>
-                Empty
-              </div>
-            )}
+            {children && childItems.length === 0 && <div className="tree-empty">Empty</div>}
             {childItems.map((child) => (
               <NavTreeRow
                 key={child.data.id}
                 item={child}
                 depth={depth + 1}
                 nav={nav}
+                activeTabId={activeTabId}
                 refreshSignal={refreshSignal}
                 onSelectFolder={onSelectFolder}
                 onOpenPage={onOpenPage}

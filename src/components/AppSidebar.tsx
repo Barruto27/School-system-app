@@ -9,6 +9,7 @@ interface AppSidebarProps {
   topFolders: Folder[];
   topPages: FileEntry[];
   nav: Nav;
+  activeTabId: string | null;
   refreshSignal: number;
   onSelectHome: () => void;
   onSelectFolder: (id: string) => void;
@@ -35,6 +36,7 @@ export function AppSidebar({
   topFolders,
   topPages,
   nav,
+  activeTabId,
   refreshSignal,
   onSelectHome,
   onSelectFolder,
@@ -131,6 +133,7 @@ export function AppSidebar({
                 item={item}
                 depth={0}
                 nav={nav}
+                activeTabId={activeTabId}
                 refreshSignal={refreshSignal}
                 onSelectFolder={onSelectFolder}
                 onOpenPage={onOpenPage}
