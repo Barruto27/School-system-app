@@ -3,6 +3,7 @@ import { AnnotationProvider } from '../annotations/store';
 import type { AnnotationTool } from '../annotations/types';
 import { AnnotationLayer } from './AnnotationLayer';
 import { ColorStrokeGroup } from './ColorStrokeGroup';
+import { EditableTitle } from './EditableTitle';
 
 const CANVAS_WIDTH = 1400;
 const CANVAS_HEIGHT = 1800;
@@ -10,9 +11,10 @@ const CANVAS_HEIGHT = 1800;
 interface CanvasViewProps {
   fileId: string;
   fileName: string;
+  onRename: (name: string) => void;
 }
 
-export function CanvasView({ fileId, fileName }: CanvasViewProps) {
+export function CanvasView({ fileId, fileName, onRename }: CanvasViewProps) {
   const [tool, setTool] = useState<AnnotationTool>('draw');
   const [color, setColor] = useState('#111827');
   const [strokeWidth, setStrokeWidth] = useState(0.004);
@@ -29,9 +31,7 @@ export function CanvasView({ fileId, fileName }: CanvasViewProps) {
     <>
       <div className="toolbar">
         <div className="toolbar-group">
-          <span className="toolbar-filename" title={fileName}>
-            {fileName}
-          </span>
+          <EditableTitle name={fileName} onRename={onRename} />
         </div>
         <div className="toolbar-group">
           {tools.map((t) => (

@@ -29,6 +29,7 @@ interface FileBrowserProps {
   onNavigate: (folderId: string) => void;
   onOpenFile: (file: FileEntry, blob: Blob) => void;
   onLibraryChanged: () => void;
+  refreshSignal?: number;
 }
 
 function formatSize(bytes: number): string {
@@ -39,7 +40,13 @@ function formatSize(bytes: number): string {
 
 type DragPayload = { kind: 'folder' | 'file'; id: string };
 
-export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile, onLibraryChanged }: FileBrowserProps) {
+export function FileBrowser({
+  folderId: currentFolderId,
+  onNavigate,
+  onOpenFile,
+  onLibraryChanged,
+  refreshSignal,
+}: FileBrowserProps) {
   const [path, setPath] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -66,7 +73,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, refreshSignal]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -115,6 +122,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
   const handleNewNote = async () => {
     const entry = await createNote('Untitled Note', currentFolderId);
     onLibraryChanged();
+    refresh();
     const blob = await getFileBlob(entry.id);
     if (blob) onOpenFile(entry, blob);
   };
@@ -122,6 +130,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
   const handleNewCanvas = async () => {
     const entry = await createCanvas('Untitled Canvas', currentFolderId);
     onLibraryChanged();
+    refresh();
     const blob = await getFileBlob(entry.id);
     if (blob) onOpenFile(entry, blob);
   };
@@ -229,7 +238,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
             style={dragOverId === ROOT_ID ? { background: 'var(--accent-bg, #dbeafe)' } : undefined}
             onClick={() => onNavigate(ROOT_ID)}
           >
-            All Files
+            <span className="breadcrumb-label">All Files</span>
           </button>
           {path.map((folder) => (
             <span key={folder.id} className="breadcrumb-segment">
@@ -245,7 +254,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
                 style={dragOverId === folder.id ? { background: 'var(--accent-bg, #dbeafe)' } : undefined}
                 onClick={() => onNavigate(folder.id)}
               >
-                {folder.name}
+                <span className="breadcrumb-label">{folder.name}</span>
               </button>
             </span>
           ))}

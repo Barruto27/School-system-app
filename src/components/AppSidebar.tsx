@@ -145,7 +145,7 @@ export function AppSidebar({
             )}
             <div className="nav-row">
               <button className={`nav-item ${homeSelected ? 'selected' : ''}`} onClick={onSelectHome}>
-                🏠 Home
+                🏠 <span className="nav-item-label">Home</span>
               </button>
             </div>
             {items.map((item) => {
@@ -182,7 +182,7 @@ export function AppSidebar({
                       className={`nav-item ${isSelected ? 'selected' : ''}`}
                       onClick={() => (item.type === 'folder' ? onSelectFolder(item.data.id) : onOpenPage(item.data))}
                     >
-                      {icon} {item.data.name}
+                      {icon} <span className="nav-item-label">{item.data.name}</span>
                     </button>
                   )}
                   <div className="nav-row-actions">

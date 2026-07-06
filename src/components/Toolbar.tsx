@@ -1,8 +1,10 @@
 import type { AnnotationTool } from '../annotations/types';
 import { ColorStrokeGroup } from './ColorStrokeGroup';
+import { EditableTitle } from './EditableTitle';
 
 interface ToolbarProps {
   fileName: string;
+  onRename: (name: string) => void;
   tool: AnnotationTool;
   onToolChange: (tool: AnnotationTool) => void;
   color: string;
@@ -22,6 +24,7 @@ interface ToolbarProps {
 
 export function Toolbar({
   fileName,
+  onRename,
   tool,
   onToolChange,
   color,
@@ -49,9 +52,7 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-group">
-        <span className="toolbar-filename" title={fileName}>
-          {fileName}
-        </span>
+        <EditableTitle name={fileName} onRename={onRename} />
         <button onClick={onExport} title="Export annotated PDF">
           Export
         </button>

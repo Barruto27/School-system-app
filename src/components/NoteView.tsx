@@ -5,10 +5,12 @@ import Image from '@tiptap/extension-image';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { getFileBlob, updateFileBlob } from '../storage/fileRepo';
+import { EditableTitle } from './EditableTitle';
 
 interface NoteViewProps {
   fileId: string;
   fileName: string;
+  onRename: (name: string) => void;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -22,7 +24,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function NoteView({ fileId, fileName }: NoteViewProps) {
+export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
   const [loaded, setLoaded] = useState(false);
   const saveTimeout = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -170,9 +172,7 @@ export function NoteView({ fileId, fileName }: NoteViewProps) {
     <>
       <div className="toolbar">
         <div className="toolbar-group">
-          <span className="toolbar-filename" title={fileName}>
-            {fileName}
-          </span>
+          <EditableTitle name={fileName} onRename={onRename} />
         </div>
         <div className="toolbar-group">
           {buttons.map((b) => (

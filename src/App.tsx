@@ -16,6 +16,7 @@ import { HomeView } from './components/HomeView';
 import { SettingsPanel } from './components/SettingsPanel';
 import { exportAnnotatedPdf } from './export/exportPdf';
 import { ROOT_ID, type FileEntry, type Folder } from './storage/types';
+import { KIND_ICON } from './storage/icons';
 import {
   addFile,
   createCanvas,
@@ -136,7 +137,7 @@ function ExportButtonHandler({ file }: { file: OpenFile }) {
   return null;
 }
 
-function ViewerView({ file }: { file: OpenFile }) {
+function ViewerView({ file, onRename }: { file: OpenFile; onRename: (name: string) => void }) {
   const [tool, setTool] = useState<AnnotationTool>('select');
   const [color, setColor] = useState('#ef4444');
   const [strokeWidth, setStrokeWidth] = useState(0.006);
@@ -212,6 +213,7 @@ function ViewerView({ file }: { file: OpenFile }) {
     <>
       <Toolbar
         fileName={file.name}
+        onRename={onRename}
         tool={tool}
         onToolChange={setTool}
         color={color}
@@ -264,7 +266,8 @@ function ViewerView({ file }: { file: OpenFile }) {
 const SIDEBAR_WIDTH_KEY = 'pkos:sidebarWidth';
 
 export default function App() {
-  const [openDoc, setOpenDoc] = useState<OpenDoc | null>(null);
+  const [openTabs, setOpenTabs] = useState<OpenDoc[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [nav, setNav] = useState<Nav>({ type: 'home' });
   const [topFolders, setTopFolders] = useState<Folder[]>([]);
   const [topPages, setTopPages] = useState<FileEntry[]>([]);
@@ -292,9 +295,12 @@ export default function App() {
     else resetAccent();
   }, [accent]);
 
+  const [libraryVersion, setLibraryVersion] = useState(0);
+
   const refreshTopLevel = useCallback(() => {
     listFolders(ROOT_ID).then(setTopFolders);
     listFiles(ROOT_ID).then(setTopPages);
+    setLibraryVersion((v) => v + 1);
   }, []);
 
   useEffect(() => {
@@ -317,14 +323,48 @@ export default function App() {
     });
   }, []);
 
+  const openTab = useCallback((doc: OpenDoc) => {
+    setOpenTabs((prev) => {
+      const existingIdx = prev.findIndex((t) => t.id === doc.id);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = doc;
+        return next;
+      }
+      return [...prev, doc];
+    });
+    setActiveTabId(doc.id);
+  }, []);
+
+  const closeTab = useCallback(
+    (id: string) => {
+      setOpenTabs((prev) => {
+        const idx = prev.findIndex((t) => t.id === id);
+        const next = prev.filter((t) => t.id !== id);
+        if (activeTabId === id) {
+          const fallback = next[idx] ?? next[idx - 1] ?? null;
+          setActiveTabId(fallback ? fallback.id : null);
+        }
+        return next;
+      });
+    },
+    [activeTabId],
+  );
+
+  const handleRenameOpenDoc = async (id: string, name: string) => {
+    await renameFile(id, name);
+    setOpenTabs((prev) => prev.map((t) => (t.id === id ? { ...t, name } : t)));
+    refreshTopLevel();
+  };
+
   const handleOpenFile = async (file: FileEntry, blob: Blob) => {
     if (file.kind === 'pdf') {
       const data = await blob.arrayBuffer();
-      setOpenDoc({ kind: 'pdf', id: file.id, name: file.name, data });
+      openTab({ kind: 'pdf', id: file.id, name: file.name, data });
     } else if (file.kind === 'note') {
-      setOpenDoc({ kind: 'note', id: file.id, name: file.name });
+      openTab({ kind: 'note', id: file.id, name: file.name });
     } else if (file.kind === 'canvas') {
-      setOpenDoc({ kind: 'canvas', id: file.id, name: file.name });
+      openTab({ kind: 'canvas', id: file.id, name: file.name });
     } else {
       return;
     }
@@ -338,7 +378,10 @@ export default function App() {
 
   const handleOpenRecent = (recent: RecentFile) => handleOpenPage(recent as FileEntry);
 
-  const onBack = () => setOpenDoc(null);
+  const goToBrowse = (next: Nav) => {
+    setNav(next);
+    setActiveTabId(null);
+  };
 
   const handleNewFolderAtRoot = async (name: string) => {
     await createFolder(name, ROOT_ID);
@@ -367,7 +410,10 @@ export default function App() {
 
   const handleDeleteItem = async (kind: 'folder' | 'file', id: string) => {
     if (kind === 'folder') await deleteFolder(id);
-    else await deleteFile(id);
+    else {
+      await deleteFile(id);
+      closeTab(id);
+    }
     if (kind === 'folder' && nav.type === 'folder' && nav.id === id) setNav({ type: 'home' });
     refreshTopLevel();
   };
@@ -386,25 +432,6 @@ export default function App() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [docMounted, setDocMounted] = useState(false);
-  const [docOpen, setDocOpen] = useState(false);
-  const [renderedDoc, setRenderedDoc] = useState<OpenDoc | null>(null);
-
-  useEffect(() => {
-    if (openDoc) {
-      setRenderedDoc(openDoc);
-      setDocMounted(true);
-      const raf = requestAnimationFrame(() => setDocOpen(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setDocOpen(false);
-    const t = window.setTimeout(() => {
-      setDocMounted(false);
-      setRenderedDoc(null);
-    }, 340);
-    return () => window.clearTimeout(t);
-  }, [openDoc]);
-
   const navKey = nav.type === 'home' ? 'home' : `folder:${nav.id}`;
 
   return (
@@ -414,8 +441,8 @@ export default function App() {
           topFolders={topFolders}
           topPages={topPages}
           nav={nav}
-          onSelectHome={() => setNav({ type: 'home' })}
-          onSelectFolder={(id) => setNav({ type: 'folder', id })}
+          onSelectHome={() => goToBrowse({ type: 'home' })}
+          onSelectFolder={(id) => goToBrowse({ type: 'folder', id })}
           onOpenPage={handleOpenPage}
           onCreateFolder={handleNewFolderAtRoot}
           onUpload={() => fileInputRef.current?.click()}
@@ -432,8 +459,33 @@ export default function App() {
           onOpenSettings={() => setSettingsOpen(true)}
         />
         <div className="app-main">
+          {openTabs.length > 0 && (
+            <div className="tab-bar">
+              {openTabs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`tab-chip ${activeTabId === doc.id ? 'active' : ''}`}
+                  onClick={() => setActiveTabId(doc.id)}
+                  title={doc.name}
+                >
+                  <span className="tab-chip-icon">{KIND_ICON[doc.kind]}</span>
+                  <span className="tab-chip-label">{doc.name}</span>
+                  <button
+                    className="tab-chip-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTab(doc.id);
+                    }}
+                    title="Close tab"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="app-content">
-            <div className="browse-pane">
+            <div className="browse-pane" style={{ display: activeTabId === null ? 'flex' : 'none' }}>
               <div key={navKey} className="browse-pane-content">
                 {nav.type === 'home' && (
                   <HomeView
@@ -448,29 +500,34 @@ export default function App() {
                 {nav.type === 'folder' && (
                   <FileBrowser
                     folderId={nav.id}
-                    onNavigate={(id) => setNav({ type: 'folder', id })}
+                    onNavigate={(id) => goToBrowse({ type: 'folder', id })}
                     onOpenFile={handleOpenFile}
                     onLibraryChanged={refreshTopLevel}
+                    refreshSignal={libraryVersion}
                   />
                 )}
               </div>
             </div>
-            {docMounted && renderedDoc && (
-              <div className={`doc-pane ${docOpen ? 'open' : ''}`}>
-                <button className="doc-pane-tab" onClick={onBack} title="Back to files">
-                  ❮
-                </button>
-                <div className="doc-pane-inner">
-                  {renderedDoc.kind === 'pdf' && (
-                    <ViewerView file={{ id: renderedDoc.id, name: renderedDoc.name, data: renderedDoc.data }} />
-                  )}
-                  {renderedDoc.kind === 'note' && <NoteView fileId={renderedDoc.id} fileName={renderedDoc.name} />}
-                  {renderedDoc.kind === 'canvas' && (
-                    <CanvasView fileId={renderedDoc.id} fileName={renderedDoc.name} />
-                  )}
-                </div>
+            {openTabs.map((doc) => (
+              <div key={doc.id} className="tab-panel" style={{ display: activeTabId === doc.id ? 'flex' : 'none' }}>
+                {doc.kind === 'pdf' && (
+                  <ViewerView
+                    file={{ id: doc.id, name: doc.name, data: doc.data }}
+                    onRename={(name) => handleRenameOpenDoc(doc.id, name)}
+                  />
+                )}
+                {doc.kind === 'note' && (
+                  <NoteView fileId={doc.id} fileName={doc.name} onRename={(name) => handleRenameOpenDoc(doc.id, name)} />
+                )}
+                {doc.kind === 'canvas' && (
+                  <CanvasView
+                    fileId={doc.id}
+                    fileName={doc.name}
+                    onRename={(name) => handleRenameOpenDoc(doc.id, name)}
+                  />
+                )}
               </div>
-            )}
+            ))}
           </div>
         </div>
       </div>
@@ -495,7 +552,7 @@ export default function App() {
           if (files) {
             for (const file of Array.from(files)) await addFile(file, ROOT_ID);
             refreshTopLevel();
-            setNav({ type: 'folder', id: ROOT_ID });
+            goToBrowse({ type: 'folder', id: ROOT_ID });
           }
           e.target.value = '';
         }}
