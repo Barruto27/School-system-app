@@ -11,8 +11,11 @@ import { FindBar } from './components/FindBar';
 import { FileBrowser } from './components/FileBrowser';
 import { NoteView } from './components/NoteView';
 import { CanvasView } from './components/CanvasView';
+import { AppSidebar, type Nav } from './components/AppSidebar';
+import { HomeView } from './components/HomeView';
 import { exportAnnotatedPdf } from './export/exportPdf';
-import type { FileEntry } from './storage/types';
+import { ROOT_ID, type FileEntry, type Folder } from './storage/types';
+import { addFile, createCanvas, createFolder, createNote, getFileBlob, listFolders } from './storage/fileRepo';
 
 interface OpenFile {
   id: string;
@@ -212,8 +215,30 @@ function ViewerView({ file, onBack }: { file: OpenFile; onBack: () => void }) {
   );
 }
 
+const SIDEBAR_WIDTH_KEY = 'pkos:sidebarWidth';
+
 export default function App() {
   const [openDoc, setOpenDoc] = useState<OpenDoc | null>(null);
+  const [nav, setNav] = useState<Nav>({ type: 'home' });
+  const [topFolders, setTopFolders] = useState<Folder[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    return saved >= 180 && saved <= 360 ? saved : 240;
+  });
+
+  const refreshTopFolders = useCallback(() => {
+    listFolders(ROOT_ID).then(setTopFolders);
+  }, []);
+
+  useEffect(() => {
+    refreshTopFolders();
+  }, [refreshTopFolders]);
+
+  const handleWidthChange = (w: number) => {
+    setSidebarWidth(w);
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(w));
+  };
 
   const handleOpenFile = async (file: FileEntry, blob: Blob) => {
     if (file.kind === 'pdf') {
@@ -228,14 +253,81 @@ export default function App() {
 
   const onBack = () => setOpenDoc(null);
 
+  const handleNewFolderAtRoot = async (name: string) => {
+    await createFolder(name, ROOT_ID);
+    refreshTopFolders();
+  };
+
+  const handleNewNoteAtRoot = async () => {
+    const entry = await createNote('Untitled Note', ROOT_ID);
+    const blob = await getFileBlob(entry.id);
+    if (blob) handleOpenFile(entry, blob);
+  };
+
+  const handleNewCanvasAtRoot = async () => {
+    const entry = await createCanvas('Untitled Canvas', ROOT_ID);
+    const blob = await getFileBlob(entry.id);
+    if (blob) handleOpenFile(entry, blob);
+  };
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const showChrome = !openDoc;
+
   return (
     <div className="app">
-      {!openDoc && <FileBrowser onOpenFile={handleOpenFile} />}
-      {openDoc?.kind === 'pdf' && (
-        <ViewerView file={{ id: openDoc.id, name: openDoc.name, data: openDoc.data }} onBack={onBack} />
-      )}
-      {openDoc?.kind === 'note' && <NoteView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
-      {openDoc?.kind === 'canvas' && <CanvasView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
+      <div className="app-body">
+        {showChrome && (
+          <AppSidebar
+            topFolders={topFolders}
+            nav={nav}
+            onSelectHome={() => setNav({ type: 'home' })}
+            onSelectFolder={(id) => setNav({ type: 'folder', id })}
+            onCreateFolder={handleNewFolderAtRoot}
+            onCreatePage={handleNewNoteAtRoot}
+            width={sidebarWidth}
+            onWidthChange={handleWidthChange}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+          />
+        )}
+        <div className="app-main">
+          {showChrome && nav.type === 'home' && (
+            <HomeView
+              onNewNote={handleNewNoteAtRoot}
+              onNewCanvas={handleNewCanvasAtRoot}
+              onUpload={() => fileInputRef.current?.click()}
+            />
+          )}
+          {showChrome && nav.type === 'folder' && (
+            <FileBrowser
+              folderId={nav.id}
+              onNavigate={(id) => setNav({ type: 'folder', id })}
+              onOpenFile={handleOpenFile}
+              onFoldersChanged={refreshTopFolders}
+            />
+          )}
+          {openDoc?.kind === 'pdf' && (
+            <ViewerView file={{ id: openDoc.id, name: openDoc.name, data: openDoc.data }} onBack={onBack} />
+          )}
+          {openDoc?.kind === 'note' && <NoteView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
+          {openDoc?.kind === 'canvas' && <CanvasView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
+        </div>
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={async (e) => {
+          const files = e.target.files;
+          if (files) {
+            for (const file of Array.from(files)) await addFile(file, ROOT_ID);
+            setNav({ type: 'folder', id: ROOT_ID });
+          }
+          e.target.value = '';
+        }}
+      />
     </div>
   );
 }

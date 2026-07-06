@@ -20,7 +20,10 @@ import {
 } from '../storage/fileRepo';
 
 interface FileBrowserProps {
+  folderId: string;
+  onNavigate: (folderId: string) => void;
   onOpenFile: (file: FileEntry, blob: Blob) => void;
+  onFoldersChanged: () => void;
 }
 
 const KIND_ICON: Record<FileKind, string> = {
@@ -40,8 +43,7 @@ function formatSize(bytes: number): string {
 
 type DragPayload = { kind: 'folder' | 'file'; id: string };
 
-export function FileBrowser({ onOpenFile }: FileBrowserProps) {
-  const [currentFolderId, setCurrentFolderId] = useState(ROOT_ID);
+export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile, onFoldersChanged }: FileBrowserProps) {
   const [path, setPath] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileEntry[]>([]);
@@ -98,6 +100,7 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
     if (name) {
       await createFolder(name, currentFolderId);
       refresh();
+      onFoldersChanged();
     }
     setCreatingFolder(false);
     setNewFolderName('');
@@ -133,8 +136,12 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
   const commitRename = async (kind: 'folder' | 'file', id: string) => {
     const name = renameValue.trim();
     if (name) {
-      if (kind === 'folder') await renameFolder(id, name);
-      else await renameFile(id, name);
+      if (kind === 'folder') {
+        await renameFolder(id, name);
+        onFoldersChanged();
+      } else {
+        await renameFile(id, name);
+      }
       refresh();
     }
     setRenamingId(null);
@@ -154,6 +161,7 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
     if (payload.kind === 'folder') {
       if (payload.id === targetFolderId) return;
       await moveFolder(payload.id, targetFolderId);
+      onFoldersChanged();
     } else {
       await moveFile(payload.id, targetFolderId);
     }
@@ -211,9 +219,9 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
             onDragLeave={() => setDragOverId(null)}
             onDrop={(e) => handleDrop(e, ROOT_ID)}
             style={dragOverId === ROOT_ID ? { background: 'var(--accent-bg, #dbeafe)' } : undefined}
-            onClick={() => setCurrentFolderId(ROOT_ID)}
+            onClick={() => onNavigate(ROOT_ID)}
           >
-            Home
+            All Files
           </button>
           {path.map((folder) => (
             <span key={folder.id} className="breadcrumb-segment">
@@ -227,7 +235,7 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
                 onDragLeave={() => setDragOverId(null)}
                 onDrop={(e) => handleDrop(e, folder.id)}
                 style={dragOverId === folder.id ? { background: 'var(--accent-bg, #dbeafe)' } : undefined}
-                onClick={() => setCurrentFolderId(folder.id)}
+                onClick={() => onNavigate(folder.id)}
               >
                 {folder.name}
               </button>
@@ -297,7 +305,7 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
                 e.stopPropagation();
                 handleDrop(e, folder.id);
               }}
-              onClick={() => setCurrentFolderId(folder.id)}
+              onClick={() => onNavigate(folder.id)}
             >
               <div className="tile-actions">
                 <button
@@ -315,7 +323,10 @@ export function FileBrowser({ onOpenFile }: FileBrowserProps) {
                   className="tile-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteFolder(folder.id).then(refresh);
+                    deleteFolder(folder.id).then(() => {
+                      refresh();
+                      onFoldersChanged();
+                    });
                   }}
                   title="Delete"
                 >
