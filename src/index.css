@@ -1,23 +1,35 @@
 :root {
-  --bg: #f5f5f7;
-  --panel: #ffffff;
-  --border: #e2e2e6;
-  --text: #1f2024;
-  --text-muted: #6b6b74;
-  --accent: #2563eb;
-  color-scheme: light dark;
-  font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
-}
+  /* Surfaces — near-black base, one step up per elevation, no pure white/black */
+  --bg: #0a0a0b;
+  --panel: #141416;
+  --panel-raised: #1e1e21;
+  --panel-overlay: #232326;
+  --border: #29292d;
+  --border-soft: #1c1c1f;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1d21;
-    --panel: #26272c;
-    --border: #38393f;
-    --text: #e7e7ea;
-    --text-muted: #9a9aa2;
-    --accent: #60a5fa;
-  }
+  /* Text */
+  --text: #f2f1ee;
+  --text-muted: #8d8d94;
+  --text-faint: #5c5c62;
+
+  /* Accent — used sparingly (breadcrumb active, focus, drag targets) */
+  --accent: #ff6a4d;
+  --accent-soft: rgba(255, 106, 77, 0.14);
+  --on-accent: #1a0906;
+
+  /* Shape + size tokens — kept as variables so a future settings panel can
+   * retune button shape/size without touching component CSS. */
+  --radius-pill: 999px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+  --control-h: 34px;
+  --control-h-sm: 26px;
+  --control-px: 14px;
+  --ease: 140ms ease;
+
+  color-scheme: dark;
+  font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -36,36 +48,79 @@ body {
   color: var(--text);
 }
 
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+  background-clip: padding-box;
+}
+
 button {
   font: inherit;
   color: inherit;
-  background: var(--panel);
+  background: var(--panel-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  height: var(--control-h);
+  padding: 0 var(--control-px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
+  transition: background var(--ease), border-color var(--ease), color var(--ease), transform 120ms ease;
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  background: var(--panel-overlay);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
 button.active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
 }
 
 input {
   font: inherit;
   color: inherit;
-  background: var(--panel);
+  background: var(--panel-raised);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  height: var(--control-h);
+  padding: 0 12px;
+  transition: border-color var(--ease);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input[type='number'] {
+  height: var(--control-h-sm);
+  padding: 0 6px;
 }
