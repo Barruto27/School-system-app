@@ -288,6 +288,63 @@
   border-radius: var(--radius-md);
 }
 
+.tree-chevron {
+  width: 20px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  font-size: 9px;
+  transition: transform 160ms ease, color var(--ease);
+  transform: rotate(0deg);
+}
+
+.tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.tree-chevron:hover {
+  color: var(--text);
+}
+
+.tree-chevron:active {
+  transform: scale(1.2);
+}
+
+.tree-chevron.expanded:active {
+  transform: rotate(90deg) scale(1.2);
+}
+
+.tree-children {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tree-children.expanded {
+  grid-template-rows: 1fr;
+}
+
+.tree-children-inner {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tree-empty {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 .sidebar-settings-btn {
   justify-content: flex-start;
   gap: 8px;
