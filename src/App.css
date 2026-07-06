@@ -303,32 +303,37 @@
 }
 
 .tree-chevron {
-  width: 20px;
-  height: 36px;
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
   padding: 0;
-  flex-shrink: 0;
+  z-index: 1;
   background: transparent;
   border: none;
+  border-radius: 4px;
   color: var(--text-faint);
   font-size: 9px;
-  transition: transform 160ms ease, color var(--ease);
-  transform: rotate(0deg);
+  transition: transform 160ms ease, color var(--ease), background var(--ease);
+  transform: translateY(-50%) rotate(0deg);
 }
 
 .tree-chevron.expanded {
-  transform: rotate(90deg);
+  transform: translateY(-50%) rotate(90deg);
 }
 
 .tree-chevron:hover {
+  background: var(--panel-overlay);
   color: var(--text);
 }
 
 .tree-chevron:active {
-  transform: scale(1.2);
+  transform: translateY(-50%) scale(1.2);
 }
 
 .tree-chevron.expanded:active {
-  transform: rotate(90deg) scale(1.2);
+  transform: translateY(-50%) rotate(90deg) scale(1.2);
 }
 
 .tree-children {
