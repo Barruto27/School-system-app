@@ -28,8 +28,61 @@
   --control-px: 14px;
   --ease: 140ms ease;
 
+  /* Font presets — overridden at runtime by the settings panel */
+  --font-heading: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --font-reading: system-ui, sans-serif;
+
   color-scheme: dark;
   font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Apple Books-style theme presets, applied via data-theme on <html> */
+:root[data-theme='white'] {
+  --bg: #ffffff;
+  --panel: #f7f7f8;
+  --panel-raised: #eeeeef;
+  --panel-overlay: #e3e3e6;
+  --border: #dcdce0;
+  --border-soft: #ececee;
+  --text: #1c1c1f;
+  --text-muted: #6b6b72;
+  --text-faint: #9a9aa0;
+  --accent: #e85a3d;
+  --accent-soft: rgba(232, 90, 61, 0.1);
+  --on-accent: #fff8f6;
+  color-scheme: light;
+}
+
+:root[data-theme='sepia'] {
+  --bg: #f2e8d3;
+  --panel: #ece0c6;
+  --panel-raised: #e3d5b5;
+  --panel-overlay: #d8c8a2;
+  --border: #cbb98d;
+  --border-soft: #ddd0b1;
+  --text: #3a2f1d;
+  --text-muted: #6b5c3f;
+  --text-faint: #8a7955;
+  --accent: #b5651d;
+  --accent-soft: rgba(181, 101, 29, 0.14);
+  --on-accent: #fdf6ec;
+  color-scheme: light;
+}
+
+:root[data-theme='gray'] {
+  --bg: #e6e6e9;
+  --panel: #dbdbdf;
+  --panel-raised: #cfcfd4;
+  --panel-overlay: #c2c2c8;
+  --border: #b3b3ba;
+  --border-soft: #cacace;
+  --text: #232326;
+  --text-muted: #55555c;
+  --text-faint: #77777e;
+  --accent: #d1502f;
+  --accent-soft: rgba(209, 80, 47, 0.14);
+  --on-accent: #fbf5f2;
+  color-scheme: light;
 }
 
 * {

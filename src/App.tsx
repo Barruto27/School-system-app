@@ -13,9 +13,27 @@ import { NoteView } from './components/NoteView';
 import { CanvasView } from './components/CanvasView';
 import { AppSidebar, type Nav } from './components/AppSidebar';
 import { HomeView } from './components/HomeView';
+import { SettingsPanel } from './components/SettingsPanel';
 import { exportAnnotatedPdf } from './export/exportPdf';
 import { ROOT_ID, type FileEntry, type Folder } from './storage/types';
-import { addFile, createCanvas, createFolder, createNote, getFileBlob, listFolders } from './storage/fileRepo';
+import {
+  addFile,
+  createCanvas,
+  createFolder,
+  createNote,
+  deleteFile,
+  deleteFolder,
+  getFileBlob,
+  listFiles,
+  listFolders,
+  moveFile,
+  moveFolder,
+  renameFile,
+  renameFolder,
+  setFileIcon,
+  setFolderIcon,
+} from './storage/fileRepo';
+import { applyFont, applyTheme, loadFont, loadTheme, type FontName, type ThemeName } from './theme';
 
 interface OpenFile {
   id: string;
@@ -221,19 +239,32 @@ export default function App() {
   const [openDoc, setOpenDoc] = useState<OpenDoc | null>(null);
   const [nav, setNav] = useState<Nav>({ type: 'home' });
   const [topFolders, setTopFolders] = useState<Folder[]>([]);
+  const [topPages, setTopPages] = useState<FileEntry[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
     return saved >= 180 && saved <= 360 ? saved : 240;
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [theme, setTheme] = useState<ThemeName>(loadTheme);
+  const [font, setFont] = useState<FontName>(loadFont);
 
-  const refreshTopFolders = useCallback(() => {
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    applyFont(font);
+  }, [font]);
+
+  const refreshTopLevel = useCallback(() => {
     listFolders(ROOT_ID).then(setTopFolders);
+    listFiles(ROOT_ID).then(setTopPages);
   }, []);
 
   useEffect(() => {
-    refreshTopFolders();
-  }, [refreshTopFolders]);
+    refreshTopLevel();
+  }, [refreshTopLevel]);
 
   const handleWidthChange = (w: number) => {
     setSidebarWidth(w);
@@ -251,23 +282,55 @@ export default function App() {
     }
   };
 
+  const handleOpenPage = async (file: FileEntry) => {
+    const blob = await getFileBlob(file.id);
+    if (blob) handleOpenFile(file, blob);
+  };
+
   const onBack = () => setOpenDoc(null);
 
   const handleNewFolderAtRoot = async (name: string) => {
     await createFolder(name, ROOT_ID);
-    refreshTopFolders();
+    refreshTopLevel();
   };
 
   const handleNewNoteAtRoot = async () => {
     const entry = await createNote('Untitled Note', ROOT_ID);
+    refreshTopLevel();
     const blob = await getFileBlob(entry.id);
     if (blob) handleOpenFile(entry, blob);
   };
 
   const handleNewCanvasAtRoot = async () => {
     const entry = await createCanvas('Untitled Canvas', ROOT_ID);
+    refreshTopLevel();
     const blob = await getFileBlob(entry.id);
     if (blob) handleOpenFile(entry, blob);
+  };
+
+  const handleRenameItem = async (kind: 'folder' | 'file', id: string, name: string) => {
+    if (kind === 'folder') await renameFolder(id, name);
+    else await renameFile(id, name);
+    refreshTopLevel();
+  };
+
+  const handleDeleteItem = async (kind: 'folder' | 'file', id: string) => {
+    if (kind === 'folder') await deleteFolder(id);
+    else await deleteFile(id);
+    if (kind === 'folder' && nav.type === 'folder' && nav.id === id) setNav({ type: 'home' });
+    refreshTopLevel();
+  };
+
+  const handleSetIcon = async (kind: 'folder' | 'file', id: string, icon: string) => {
+    if (kind === 'folder') await setFolderIcon(id, icon);
+    else await setFileIcon(id, icon);
+    refreshTopLevel();
+  };
+
+  const handleMoveIntoFolder = async (kind: 'folder' | 'file', id: string, targetFolderId: string) => {
+    if (kind === 'folder') await moveFolder(id, targetFolderId);
+    else await moveFile(id, targetFolderId);
+    refreshTopLevel();
   };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -280,15 +343,24 @@ export default function App() {
         {showChrome && (
           <AppSidebar
             topFolders={topFolders}
+            topPages={topPages}
             nav={nav}
             onSelectHome={() => setNav({ type: 'home' })}
             onSelectFolder={(id) => setNav({ type: 'folder', id })}
+            onOpenPage={handleOpenPage}
             onCreateFolder={handleNewFolderAtRoot}
-            onCreatePage={handleNewNoteAtRoot}
+            onUpload={() => fileInputRef.current?.click()}
+            onNewNote={handleNewNoteAtRoot}
+            onNewCanvas={handleNewCanvasAtRoot}
+            onRenameItem={handleRenameItem}
+            onDeleteItem={handleDeleteItem}
+            onSetIcon={handleSetIcon}
+            onMoveIntoFolder={handleMoveIntoFolder}
             width={sidebarWidth}
             onWidthChange={handleWidthChange}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         )}
         <div className="app-main">
@@ -304,7 +376,7 @@ export default function App() {
               folderId={nav.id}
               onNavigate={(id) => setNav({ type: 'folder', id })}
               onOpenFile={handleOpenFile}
-              onFoldersChanged={refreshTopFolders}
+              onLibraryChanged={refreshTopLevel}
             />
           )}
           {openDoc?.kind === 'pdf' && (
@@ -314,6 +386,15 @@ export default function App() {
           {openDoc?.kind === 'canvas' && <CanvasView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
         </div>
       </div>
+      {settingsOpen && (
+        <SettingsPanel
+          theme={theme}
+          font={font}
+          onThemeChange={setTheme}
+          onFontChange={setFont}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       <input
         ref={fileInputRef}
         type="file"
@@ -323,6 +404,7 @@ export default function App() {
           const files = e.target.files;
           if (files) {
             for (const file of Array.from(files)) await addFile(file, ROOT_ID);
+            refreshTopLevel();
             setNav({ type: 'folder', id: ROOT_ID });
           }
           e.target.value = '';

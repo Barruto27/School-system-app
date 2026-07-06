@@ -8,6 +8,8 @@ export interface Folder {
   name: string;
   parentId: string;
   createdAt: number;
+  /** Custom emoji override; falls back to the default category icon when unset. */
+  icon?: string;
 }
 
 export type FileKind = 'pdf' | 'image' | 'doc' | 'note' | 'canvas' | 'other';
@@ -20,6 +22,8 @@ export interface FileEntry {
   mimeType: string;
   size: number;
   dateAdded: number;
+  /** Custom emoji override; falls back to the kind-based default icon when unset. */
+  icon?: string;
   /** Deliberately included but unused until a later stage: keeping the
    * schema as folders+tags (not folders-only) avoids retrofitting auto-sort
    * and cross-linking onto a too-rigid file/folder model later. */

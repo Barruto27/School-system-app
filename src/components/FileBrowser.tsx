@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ROOT_ID, type FileEntry, type FileKind, type Folder } from '../storage/types';
+import { ROOT_ID, type FileEntry, type Folder } from '../storage/types';
+import { KIND_ICON } from '../storage/icons';
 import {
   addFile,
   createCanvas,
@@ -16,24 +17,19 @@ import {
   renameFile,
   renameFolder,
   searchFilesByName,
+  setFileIcon,
+  setFolderIcon,
   type SearchResult,
 } from '../storage/fileRepo';
+import { AddMenu } from './AddMenu';
+import { EmojiPicker } from './EmojiPicker';
 
 interface FileBrowserProps {
   folderId: string;
   onNavigate: (folderId: string) => void;
   onOpenFile: (file: FileEntry, blob: Blob) => void;
-  onFoldersChanged: () => void;
+  onLibraryChanged: () => void;
 }
-
-const KIND_ICON: Record<FileKind, string> = {
-  pdf: '📄',
-  image: '🖼️',
-  doc: '📝',
-  note: '🗒️',
-  canvas: '🎨',
-  other: '📦',
-};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -43,16 +39,15 @@ function formatSize(bytes: number): string {
 
 type DragPayload = { kind: 'folder' | 'file'; id: string };
 
-export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile, onFoldersChanged }: FileBrowserProps) {
+export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile, onLibraryChanged }: FileBrowserProps) {
   const [path, setPath] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [emojiTargetId, setEmojiTargetId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [isDraggingOverGrid, setIsDraggingOverGrid] = useState(false);
 
@@ -93,17 +88,13 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
       await addFile(file, folderId);
     }
     if (folderId === currentFolderId) refresh();
+    onLibraryChanged();
   };
 
-  const handleCreateFolder = async () => {
-    const name = newFolderName.trim();
-    if (name) {
-      await createFolder(name, currentFolderId);
-      refresh();
-      onFoldersChanged();
-    }
-    setCreatingFolder(false);
-    setNewFolderName('');
+  const handleCreateFolder = async (name: string) => {
+    await createFolder(name, currentFolderId);
+    refresh();
+    onLibraryChanged();
   };
 
   const handleTileOpen = async (file: FileEntry) => {
@@ -123,12 +114,14 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
 
   const handleNewNote = async () => {
     const entry = await createNote('Untitled Note', currentFolderId);
+    onLibraryChanged();
     const blob = await getFileBlob(entry.id);
     if (blob) onOpenFile(entry, blob);
   };
 
   const handleNewCanvas = async () => {
     const entry = await createCanvas('Untitled Canvas', currentFolderId);
+    onLibraryChanged();
     const blob = await getFileBlob(entry.id);
     if (blob) onOpenFile(entry, blob);
   };
@@ -138,13 +131,31 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
     if (name) {
       if (kind === 'folder') {
         await renameFolder(id, name);
-        onFoldersChanged();
       } else {
         await renameFile(id, name);
       }
+      onLibraryChanged();
       refresh();
     }
     setRenamingId(null);
+  };
+
+  const handleSetIcon = async (kind: 'folder' | 'file', id: string, icon: string) => {
+    if (kind === 'folder') {
+      await setFolderIcon(id, icon);
+    } else {
+      await setFileIcon(id, icon);
+    }
+    onLibraryChanged();
+    refresh();
+    setEmojiTargetId(null);
+  };
+
+  const handleDelete = async (kind: 'folder' | 'file', id: string) => {
+    if (kind === 'folder') await deleteFolder(id);
+    else await deleteFile(id);
+    onLibraryChanged();
+    refresh();
   };
 
   const handleDrop = async (e: React.DragEvent, targetFolderId: string) => {
@@ -161,10 +172,10 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
     if (payload.kind === 'folder') {
       if (payload.id === targetFolderId) return;
       await moveFolder(payload.id, targetFolderId);
-      onFoldersChanged();
     } else {
       await moveFile(payload.id, targetFolderId);
     }
+    onLibraryChanged();
     refresh();
   };
 
@@ -178,17 +189,21 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
   return (
     <div className="file-browser">
       <div className="file-browser-toolbar">
-        <button
-          onClick={() => {
-            setCreatingFolder(true);
-            setNewFolderName('');
-          }}
-        >
-          New Folder
-        </button>
-        <button onClick={() => fileInputRef.current?.click()}>Upload</button>
-        <button onClick={handleNewNote}>New Note</button>
-        <button onClick={handleNewCanvas}>New Canvas</button>
+        <input
+          type="text"
+          className="file-search-input"
+          placeholder="Search files by name..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <AddMenu
+          className="ml-auto"
+          folderLabel="Category"
+          onCreateFolder={handleCreateFolder}
+          onUpload={() => fileInputRef.current?.click()}
+          onNewNote={handleNewNote}
+          onNewCanvas={handleNewCanvas}
+        />
         <input
           ref={fileInputRef}
           type="file"
@@ -198,13 +213,6 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
             handleImportFiles(e.target.files);
             e.target.value = '';
           }}
-        />
-        <input
-          type="text"
-          className="file-search-input"
-          placeholder="Search files by name..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
         />
       </div>
 
@@ -249,7 +257,7 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
           {searchResults.length === 0 && <div className="file-browser-empty">No files match "{query}".</div>}
           {searchResults.map(({ file, path: resultPath }) => (
             <button key={file.id} className="file-tile" onClick={() => handleTileOpen(file)} title={file.name}>
-              <span className="file-tile-icon">{KIND_ICON[file.kind]}</span>
+              <span className="file-tile-icon">{file.icon ?? KIND_ICON[file.kind]}</span>
               <span className="file-tile-name">{file.name}</span>
               <span className="file-tile-meta">
                 {resultPath.length > 0 ? resultPath.map((f) => f.name).join(' / ') : 'Home'}
@@ -269,26 +277,6 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
           }}
           onDrop={(e) => handleDrop(e, currentFolderId)}
         >
-          {creatingFolder && (
-            <div className="folder-tile creating">
-              <span className="file-tile-icon">📁</span>
-              <input
-                autoFocus
-                className="rename-input"
-                value={newFolderName}
-                placeholder="Folder name"
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onBlur={handleCreateFolder}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    setCreatingFolder(false);
-                    setNewFolderName('');
-                  }
-                }}
-              />
-            </div>
-          )}
           {folders.map((folder) => (
             <div
               key={folder.id}
@@ -312,6 +300,16 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
                   className="tile-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setEmojiTargetId(emojiTargetId === folder.id ? null : folder.id);
+                  }}
+                  title="Change emoji"
+                >
+                  😀
+                </button>
+                <button
+                  className="tile-action-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setRenamingId(folder.id);
                     setRenameValue(folder.name);
                   }}
@@ -323,17 +321,20 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
                   className="tile-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteFolder(folder.id).then(() => {
-                      refresh();
-                      onFoldersChanged();
-                    });
+                    handleDelete('folder', folder.id);
                   }}
                   title="Delete"
                 >
                   x
                 </button>
               </div>
-              <span className="file-tile-icon">📁</span>
+              <span className="file-tile-icon">{folder.icon ?? '📁'}</span>
+              {emojiTargetId === folder.id && (
+                <EmojiPicker
+                  onSelect={(icon) => handleSetIcon('folder', folder.id, icon)}
+                  onClose={() => setEmojiTargetId(null)}
+                />
+              )}
               {renamingId === folder.id ? (
                 <input
                   autoFocus
@@ -362,6 +363,13 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
               <div className="tile-actions">
                 <button
                   className="tile-action-btn"
+                  onClick={() => setEmojiTargetId(emojiTargetId === file.id ? null : file.id)}
+                  title="Change emoji"
+                >
+                  😀
+                </button>
+                <button
+                  className="tile-action-btn"
                   onClick={() => {
                     setRenamingId(file.id);
                     setRenameValue(file.name);
@@ -370,12 +378,12 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
                 >
                   ✎
                 </button>
-                <button className="tile-action-btn" onClick={() => deleteFile(file.id).then(refresh)} title="Delete">
+                <button className="tile-action-btn" onClick={() => handleDelete('file', file.id)} title="Delete">
                   x
                 </button>
               </div>
               <button className="file-tile" onClick={() => handleTileOpen(file)} title={file.name}>
-                <span className="file-tile-icon">{KIND_ICON[file.kind]}</span>
+                <span className="file-tile-icon">{file.icon ?? KIND_ICON[file.kind]}</span>
                 {renamingId === file.id ? (
                   <input
                     autoFocus
@@ -394,10 +402,16 @@ export function FileBrowser({ folderId: currentFolderId, onNavigate, onOpenFile,
                 )}
                 <span className="file-tile-meta">{formatSize(file.size)}</span>
               </button>
+              {emojiTargetId === file.id && (
+                <EmojiPicker
+                  onSelect={(icon) => handleSetIcon('file', file.id, icon)}
+                  onClose={() => setEmojiTargetId(null)}
+                />
+              )}
             </div>
           ))}
-          {folders.length === 0 && files.length === 0 && !creatingFolder && (
-            <div className="file-browser-empty">This folder is empty. Upload a file or drop it here.</div>
+          {folders.length === 0 && files.length === 0 && (
+            <div className="file-browser-empty">This category is empty. Upload a file or drop it here.</div>
           )}
         </div>
       )}

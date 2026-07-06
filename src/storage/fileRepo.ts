@@ -124,6 +124,20 @@ export async function renameFile(id: string, name: string): Promise<void> {
   await db.put('files', { ...file, name });
 }
 
+export async function setFolderIcon(id: string, icon: string): Promise<void> {
+  const db = await getDb();
+  const folder = await db.get('folders', id);
+  if (!folder) return;
+  await db.put('folders', { ...folder, icon });
+}
+
+export async function setFileIcon(id: string, icon: string): Promise<void> {
+  const db = await getDb();
+  const file = await db.get('files', id);
+  if (!file) return;
+  await db.put('files', { ...file, icon });
+}
+
 export async function moveFolder(id: string, parentId: string): Promise<void> {
   const db = await getDb();
   const folder = await db.get('folders', id);
