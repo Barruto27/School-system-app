@@ -393,6 +393,60 @@
   background: var(--bg);
 }
 
+.note-scroll {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 40px 24px;
+  background: var(--bg);
+}
+
+.note-page {
+  width: 100%;
+  max-width: 720px;
+  height: fit-content;
+  background: white;
+  color: #1f2024;
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  padding: 56px 64px;
+}
+
+.note-editor {
+  outline: none;
+  min-height: 60vh;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.note-editor p {
+  margin: 0 0 0.8em;
+}
+
+.note-editor h1 {
+  font-size: 28px;
+  margin: 0.4em 0 0.3em;
+}
+
+.note-editor h2 {
+  font-size: 20px;
+  margin: 0.4em 0 0.3em;
+}
+
+.note-editor ul,
+.note-editor ol {
+  padding-left: 1.4em;
+  margin: 0 0 0.8em;
+}
+
+.note-editor blockquote {
+  border-left: 3px solid #d0d0d5;
+  margin: 0 0 0.8em;
+  padding-left: 1em;
+  color: #55555c;
+}
+
 .loading,
 .empty-state {
   color: var(--text-muted);

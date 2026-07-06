@@ -59,6 +59,57 @@ export async function getFileBlob(id: string): Promise<Blob | undefined> {
   return db.get('blobs', id);
 }
 
+export async function updateFileBlob(id: string, blob: Blob): Promise<void> {
+  const db = await getDb();
+  const file = await db.get('files', id);
+  const tx = db.transaction(['files', 'blobs'], 'readwrite');
+  if (file) await tx.objectStore('files').put({ ...file, size: blob.size });
+  await tx.objectStore('blobs').put(blob, id);
+  await tx.done;
+}
+
+export async function createNote(name: string, folderId: string): Promise<FileEntry> {
+  const db = await getDb();
+  const id = newId();
+  const blob = new Blob([''], { type: 'application/json' });
+  const entry: FileEntry = {
+    id,
+    name,
+    folderId,
+    kind: 'note',
+    mimeType: 'application/json',
+    size: blob.size,
+    dateAdded: Date.now(),
+    tags: [],
+  };
+  const tx = db.transaction(['files', 'blobs'], 'readwrite');
+  await tx.objectStore('files').put(entry);
+  await tx.objectStore('blobs').put(blob, id);
+  await tx.done;
+  return entry;
+}
+
+export async function createCanvas(name: string, folderId: string): Promise<FileEntry> {
+  const db = await getDb();
+  const id = newId();
+  const blob = new Blob([''], { type: 'application/json' });
+  const entry: FileEntry = {
+    id,
+    name,
+    folderId,
+    kind: 'canvas',
+    mimeType: 'application/json',
+    size: blob.size,
+    dateAdded: Date.now(),
+    tags: [],
+  };
+  const tx = db.transaction(['files', 'blobs'], 'readwrite');
+  await tx.objectStore('files').put(entry);
+  await tx.objectStore('blobs').put(blob, id);
+  await tx.done;
+  return entry;
+}
+
 export async function renameFolder(id: string, name: string): Promise<void> {
   const db = await getDb();
   const folder = await db.get('folders', id);

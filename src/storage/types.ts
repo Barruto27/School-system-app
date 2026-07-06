@@ -10,7 +10,7 @@ export interface Folder {
   createdAt: number;
 }
 
-export type FileKind = 'pdf' | 'image' | 'doc' | 'other';
+export type FileKind = 'pdf' | 'image' | 'doc' | 'note' | 'canvas' | 'other';
 
 export interface FileEntry {
   id: string;

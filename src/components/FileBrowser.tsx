@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ROOT_ID, type FileEntry, type FileKind, type Folder } from '../storage/types';
 import {
   addFile,
+  createCanvas,
   createFolder,
+  createNote,
   deleteFile,
   deleteFolder,
   getFileBlob,
@@ -18,13 +20,15 @@ import {
 } from '../storage/fileRepo';
 
 interface FileBrowserProps {
-  onOpenPdf: (fileId: string, name: string, blob: Blob) => void;
+  onOpenFile: (file: FileEntry, blob: Blob) => void;
 }
 
 const KIND_ICON: Record<FileKind, string> = {
   pdf: '📄',
   image: '🖼️',
   doc: '📝',
+  note: '🗒️',
+  canvas: '🎨',
   other: '📦',
 };
 
@@ -36,7 +40,7 @@ function formatSize(bytes: number): string {
 
 type DragPayload = { kind: 'folder' | 'file'; id: string };
 
-export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
+export function FileBrowser({ onOpenFile }: FileBrowserProps) {
   const [currentFolderId, setCurrentFolderId] = useState(ROOT_ID);
   const [path, setPath] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -99,11 +103,11 @@ export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
     setNewFolderName('');
   };
 
-  const handleOpenFile = async (file: FileEntry) => {
+  const handleTileOpen = async (file: FileEntry) => {
     const blob = await getFileBlob(file.id);
     if (!blob) return;
-    if (file.kind === 'pdf') {
-      onOpenPdf(file.id, file.name, blob);
+    if (file.kind === 'pdf' || file.kind === 'note' || file.kind === 'canvas') {
+      onOpenFile(file, blob);
     } else {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -112,6 +116,18 @@ export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
       a.click();
       URL.revokeObjectURL(url);
     }
+  };
+
+  const handleNewNote = async () => {
+    const entry = await createNote('Untitled Note', currentFolderId);
+    const blob = await getFileBlob(entry.id);
+    if (blob) onOpenFile(entry, blob);
+  };
+
+  const handleNewCanvas = async () => {
+    const entry = await createCanvas('Untitled Canvas', currentFolderId);
+    const blob = await getFileBlob(entry.id);
+    if (blob) onOpenFile(entry, blob);
   };
 
   const commitRename = async (kind: 'folder' | 'file', id: string) => {
@@ -163,6 +179,8 @@ export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
           New Folder
         </button>
         <button onClick={() => fileInputRef.current?.click()}>Upload</button>
+        <button onClick={handleNewNote}>New Note</button>
+        <button onClick={handleNewCanvas}>New Canvas</button>
         <input
           ref={fileInputRef}
           type="file"
@@ -222,7 +240,7 @@ export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
         <div className="file-grid">
           {searchResults.length === 0 && <div className="file-browser-empty">No files match "{query}".</div>}
           {searchResults.map(({ file, path: resultPath }) => (
-            <button key={file.id} className="file-tile" onClick={() => handleOpenFile(file)} title={file.name}>
+            <button key={file.id} className="file-tile" onClick={() => handleTileOpen(file)} title={file.name}>
               <span className="file-tile-icon">{KIND_ICON[file.kind]}</span>
               <span className="file-tile-name">{file.name}</span>
               <span className="file-tile-meta">
@@ -345,7 +363,7 @@ export function FileBrowser({ onOpenPdf }: FileBrowserProps) {
                   x
                 </button>
               </div>
-              <button className="file-tile" onClick={() => handleOpenFile(file)} title={file.name}>
+              <button className="file-tile" onClick={() => handleTileOpen(file)} title={file.name}>
                 <span className="file-tile-icon">{KIND_ICON[file.kind]}</span>
                 {renamingId === file.id ? (
                   <input

@@ -9,13 +9,21 @@ import { Sidebar } from './components/Sidebar';
 import { PageView } from './components/PageView';
 import { FindBar } from './components/FindBar';
 import { FileBrowser } from './components/FileBrowser';
+import { NoteView } from './components/NoteView';
+import { CanvasView } from './components/CanvasView';
 import { exportAnnotatedPdf } from './export/exportPdf';
+import type { FileEntry } from './storage/types';
 
 interface OpenFile {
   id: string;
   name: string;
   data: ArrayBuffer;
 }
+
+type OpenDoc =
+  | { kind: 'pdf'; id: string; name: string; data: ArrayBuffer }
+  | { kind: 'note'; id: string; name: string }
+  | { kind: 'canvas'; id: string; name: string };
 
 function ViewerBody({
   data,
@@ -205,20 +213,29 @@ function ViewerView({ file, onBack }: { file: OpenFile; onBack: () => void }) {
 }
 
 export default function App() {
-  const [file, setFile] = useState<OpenFile | null>(null);
+  const [openDoc, setOpenDoc] = useState<OpenDoc | null>(null);
 
-  const handleOpenPdf = async (fileId: string, name: string, blob: Blob) => {
-    const data = await blob.arrayBuffer();
-    setFile({ id: fileId, name, data });
+  const handleOpenFile = async (file: FileEntry, blob: Blob) => {
+    if (file.kind === 'pdf') {
+      const data = await blob.arrayBuffer();
+      setOpenDoc({ kind: 'pdf', id: file.id, name: file.name, data });
+    } else if (file.kind === 'note') {
+      setOpenDoc({ kind: 'note', id: file.id, name: file.name });
+    } else if (file.kind === 'canvas') {
+      setOpenDoc({ kind: 'canvas', id: file.id, name: file.name });
+    }
   };
+
+  const onBack = () => setOpenDoc(null);
 
   return (
     <div className="app">
-      {file ? (
-        <ViewerView file={file} onBack={() => setFile(null)} />
-      ) : (
-        <FileBrowser onOpenPdf={handleOpenPdf} />
+      {!openDoc && <FileBrowser onOpenFile={handleOpenFile} />}
+      {openDoc?.kind === 'pdf' && (
+        <ViewerView file={{ id: openDoc.id, name: openDoc.name, data: openDoc.data }} onBack={onBack} />
       )}
+      {openDoc?.kind === 'note' && <NoteView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
+      {openDoc?.kind === 'canvas' && <CanvasView fileId={openDoc.id} fileName={openDoc.name} onBack={onBack} />}
     </div>
   );
 }
