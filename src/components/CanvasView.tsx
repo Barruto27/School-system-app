@@ -5,16 +5,15 @@ import { AnnotationLayer } from './AnnotationLayer';
 import { ColorStrokeGroup } from './ColorStrokeGroup';
 import { EditableTitle } from './EditableTitle';
 
-const CANVAS_WIDTH = 1400;
-const CANVAS_HEIGHT = 1800;
-
 interface CanvasViewProps {
   fileId: string;
   fileName: string;
+  width: number;
+  height: number;
   onRename: (name: string) => void;
 }
 
-export function CanvasView({ fileId, fileName, onRename }: CanvasViewProps) {
+export function CanvasView({ fileId, fileName, width, height, onRename }: CanvasViewProps) {
   const [tool, setTool] = useState<AnnotationTool>('draw');
   const [color, setColor] = useState('#111827');
   const [strokeWidth, setStrokeWidth] = useState(0.004);
@@ -29,37 +28,39 @@ export function CanvasView({ fileId, fileName, onRename }: CanvasViewProps) {
 
   return (
     <>
-      <div className="toolbar">
+      <div className="toolbar toolbar-centered">
         <div className="toolbar-group">
           <EditableTitle name={fileName} onRename={onRename} />
         </div>
-        <div className="toolbar-group">
-          {tools.map((t) => (
-            <button
-              key={t.id}
-              className={tool === t.id ? 'active' : ''}
-              onClick={() => setTool(t.id)}
-              title={t.title}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="toolbar-center-cluster">
+          <div className="toolbar-group">
+            {tools.map((t) => (
+              <button
+                key={t.id}
+                className={tool === t.id ? 'active' : ''}
+                onClick={() => setTool(t.id)}
+                title={t.title}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <ColorStrokeGroup
+            color={color}
+            onColorChange={setColor}
+            strokeWidth={strokeWidth}
+            onStrokeWidthChange={setStrokeWidth}
+          />
         </div>
-        <ColorStrokeGroup
-          color={color}
-          onColorChange={setColor}
-          strokeWidth={strokeWidth}
-          onStrokeWidthChange={setStrokeWidth}
-        />
       </div>
       <div className="main-area">
         <div className="viewer-scroll">
           <AnnotationProvider docKey={fileId}>
-            <div className="page-view" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}>
+            <div className="page-view" style={{ width, height }}>
               <AnnotationLayer
                 pageIndex={0}
-                width={CANVAS_WIDTH}
-                height={CANVAS_HEIGHT}
+                width={width}
+                height={height}
                 tool={tool}
                 color={color}
                 strokeWidth={strokeWidth}

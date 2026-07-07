@@ -3,6 +3,7 @@ import type { FileEntry, Folder } from '../storage/types';
 import { KIND_ICON } from '../storage/icons';
 import { listFiles, listFolders } from '../storage/fileRepo';
 import { EmojiPicker } from './EmojiPicker';
+import { ItemActionsMenu } from './ItemActionsMenu';
 import type { Nav } from './AppSidebar';
 
 export type NavItem = { type: 'folder'; data: Folder } | { type: 'file'; data: FileEntry };
@@ -94,7 +95,7 @@ export function NavTreeRow({
     : [];
 
   return (
-    <>
+    <div className="tree-node">
       <div
         className={`nav-row ${dragOver ? 'nav-row-drag-over' : ''}`}
         data-selected={isSelected ? 'true' : undefined}
@@ -141,37 +142,14 @@ export function NavTreeRow({
           </button>
         )}
         <div className="nav-row-actions">
-          <button
-            className="tile-action-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEmojiOpen((v) => !v);
-            }}
-            title="Change emoji"
-          >
-            😀
-          </button>
-          <button
-            className="tile-action-btn"
-            onClick={(e) => {
-              e.stopPropagation();
+          <ItemActionsMenu
+            onChangeEmoji={() => setEmojiOpen((v) => !v)}
+            onRename={() => {
               setRenameValue(item.data.name);
               setRenaming(true);
             }}
-            title="Rename"
-          >
-            ✎
-          </button>
-          <button
-            className="tile-action-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDeleteItem(item.type, item.data.id);
-            }}
-            title="Delete"
-          >
-            x
-          </button>
+            onDelete={() => onDeleteItem(item.type, item.data.id)}
+          />
         </div>
         {emojiOpen && (
           <EmojiPicker
@@ -207,6 +185,6 @@ export function NavTreeRow({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

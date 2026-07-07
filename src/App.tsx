@@ -22,6 +22,8 @@ import {
   createCanvas,
   createFolder,
   createNote,
+  DEFAULT_CANVAS_HEIGHT,
+  DEFAULT_CANVAS_WIDTH,
   deleteFile,
   deleteFolder,
   getFileBlob,
@@ -33,7 +35,9 @@ import {
   renameFolder,
   setFileIcon,
   setFolderIcon,
+  touchFileAccess,
 } from './storage/fileRepo';
+import { CanvasSizeDialog } from './components/CanvasSizeDialog';
 import {
   applyAccent,
   applyFont,
@@ -74,7 +78,7 @@ interface OpenFile {
 type OpenDoc =
   | { kind: 'pdf'; id: string; name: string; data: ArrayBuffer }
   | { kind: 'note'; id: string; name: string }
-  | { kind: 'canvas'; id: string; name: string };
+  | { kind: 'canvas'; id: string; name: string; width: number; height: number };
 
 function ViewerBody({
   data,
@@ -364,11 +368,18 @@ export default function App() {
     } else if (file.kind === 'note') {
       openTab({ kind: 'note', id: file.id, name: file.name });
     } else if (file.kind === 'canvas') {
-      openTab({ kind: 'canvas', id: file.id, name: file.name });
+      openTab({
+        kind: 'canvas',
+        id: file.id,
+        name: file.name,
+        width: file.canvasWidth ?? DEFAULT_CANVAS_WIDTH,
+        height: file.canvasHeight ?? DEFAULT_CANVAS_HEIGHT,
+      });
     } else {
       return;
     }
     pushRecent(file);
+    touchFileAccess(file.id);
   };
 
   const handleOpenPage = async (file: FileEntry) => {
@@ -395,8 +406,15 @@ export default function App() {
     if (blob) handleOpenFile(entry, blob);
   };
 
-  const handleNewCanvasAtRoot = async () => {
-    const entry = await createCanvas('Untitled Canvas', ROOT_ID);
+  const [canvasDialogFolderId, setCanvasDialogFolderId] = useState<string | null>(null);
+
+  const requestNewCanvas = (folderId: string) => setCanvasDialogFolderId(folderId);
+
+  const confirmNewCanvas = async (width: number, height: number) => {
+    const folderId = canvasDialogFolderId;
+    setCanvasDialogFolderId(null);
+    if (folderId === null) return;
+    const entry = await createCanvas('Untitled Canvas', folderId, width, height);
     refreshTopLevel();
     const blob = await getFileBlob(entry.id);
     if (blob) handleOpenFile(entry, blob);
@@ -449,7 +467,7 @@ export default function App() {
           onCreateFolder={handleNewFolderAtRoot}
           onUpload={() => fileInputRef.current?.click()}
           onNewNote={handleNewNoteAtRoot}
-          onNewCanvas={handleNewCanvasAtRoot}
+          onNewCanvas={() => requestNewCanvas(ROOT_ID)}
           onRenameItem={handleRenameItem}
           onDeleteItem={handleDeleteItem}
           onSetIcon={handleSetIcon}
@@ -492,11 +510,19 @@ export default function App() {
                 {nav.type === 'home' && (
                   <HomeView
                     onNewNote={handleNewNoteAtRoot}
-                    onNewCanvas={handleNewCanvasAtRoot}
+                    onNewCanvas={() => requestNewCanvas(ROOT_ID)}
                     onUpload={() => fileInputRef.current?.click()}
                     onCreateFolder={handleNewFolderAtRoot}
                     recentFiles={recentFiles}
                     onOpenRecent={handleOpenRecent}
+                    topFolders={topFolders}
+                    topPages={topPages}
+                    onSelectFolder={(id) => goToBrowse({ type: 'folder', id })}
+                    onOpenFileEntry={handleOpenPage}
+                    onRenameItem={handleRenameItem}
+                    onDeleteItem={handleDeleteItem}
+                    onSetIcon={handleSetIcon}
+                    onMoveIntoFolder={handleMoveIntoFolder}
                   />
                 )}
                 {nav.type === 'folder' && (
@@ -506,6 +532,7 @@ export default function App() {
                     onOpenFile={handleOpenFile}
                     onLibraryChanged={refreshTopLevel}
                     refreshSignal={libraryVersion}
+                    onNewCanvas={() => requestNewCanvas(nav.id)}
                   />
                 )}
               </div>
@@ -525,6 +552,8 @@ export default function App() {
                   <CanvasView
                     fileId={doc.id}
                     fileName={doc.name}
+                    width={doc.width}
+                    height={doc.height}
                     onRename={(name) => handleRenameOpenDoc(doc.id, name)}
                   />
                 )}
@@ -543,6 +572,9 @@ export default function App() {
           onAccentChange={setAccent}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+      {canvasDialogFolderId !== null && (
+        <CanvasSizeDialog onCancel={() => setCanvasDialogFolderId(null)} onConfirm={confirmNewCanvas} />
       )}
       <input
         ref={fileInputRef}

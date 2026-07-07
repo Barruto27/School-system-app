@@ -170,30 +170,32 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
 
   return (
     <>
-      <div className="toolbar">
+      <div className="toolbar toolbar-centered">
         <div className="toolbar-group">
           <EditableTitle name={fileName} onRename={onRename} />
         </div>
-        <div className="toolbar-group">
-          {buttons.map((b) => (
-            <button key={b.title} className={b.active() ? 'active' : ''} onClick={b.action} title={b.title}>
-              {b.label}
+        <div className="toolbar-center-cluster">
+          <div className="toolbar-group">
+            {buttons.map((b) => (
+              <button key={b.title} className={b.active() ? 'active' : ''} onClick={b.action} title={b.title}>
+                {b.label}
+              </button>
+            ))}
+            <button onClick={() => imageInputRef.current?.click()} title="Insert image">
+              🖼
             </button>
-          ))}
-          <button onClick={() => imageInputRef.current?.click()} title="Insert image">
-            🖼
-          </button>
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) insertImage(file);
-              e.target.value = '';
-            }}
-          />
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) insertImage(file);
+                e.target.value = '';
+              }}
+            />
+          </div>
         </div>
       </div>
       <div className="main-area">

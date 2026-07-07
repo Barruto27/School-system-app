@@ -3,7 +3,6 @@ import { ROOT_ID, type FileEntry, type Folder } from '../storage/types';
 import { KIND_ICON } from '../storage/icons';
 import {
   addFile,
-  createCanvas,
   createFolder,
   createNote,
   deleteFile,
@@ -23,6 +22,7 @@ import {
 } from '../storage/fileRepo';
 import { AddMenu } from './AddMenu';
 import { EmojiPicker } from './EmojiPicker';
+import { ItemActionsMenu } from './ItemActionsMenu';
 
 interface FileBrowserProps {
   folderId: string;
@@ -30,6 +30,7 @@ interface FileBrowserProps {
   onOpenFile: (file: FileEntry, blob: Blob) => void;
   onLibraryChanged: () => void;
   refreshSignal?: number;
+  onNewCanvas: () => void;
 }
 
 function formatSize(bytes: number): string {
@@ -46,6 +47,7 @@ export function FileBrowser({
   onOpenFile,
   onLibraryChanged,
   refreshSignal,
+  onNewCanvas,
 }: FileBrowserProps) {
   const [path, setPath] = useState<Folder[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -121,14 +123,6 @@ export function FileBrowser({
 
   const handleNewNote = async () => {
     const entry = await createNote('Untitled Note', currentFolderId);
-    onLibraryChanged();
-    refresh();
-    const blob = await getFileBlob(entry.id);
-    if (blob) onOpenFile(entry, blob);
-  };
-
-  const handleNewCanvas = async () => {
-    const entry = await createCanvas('Untitled Canvas', currentFolderId);
     onLibraryChanged();
     refresh();
     const blob = await getFileBlob(entry.id);
@@ -211,7 +205,7 @@ export function FileBrowser({
           onCreateFolder={handleCreateFolder}
           onUpload={() => fileInputRef.current?.click()}
           onNewNote={handleNewNote}
-          onNewCanvas={handleNewCanvas}
+          onNewCanvas={onNewCanvas}
         />
         <input
           ref={fileInputRef}
@@ -305,37 +299,14 @@ export function FileBrowser({
               onClick={() => onNavigate(folder.id)}
             >
               <div className="tile-actions">
-                <button
-                  className="tile-action-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEmojiTargetId(emojiTargetId === folder.id ? null : folder.id);
-                  }}
-                  title="Change emoji"
-                >
-                  😀
-                </button>
-                <button
-                  className="tile-action-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                <ItemActionsMenu
+                  onChangeEmoji={() => setEmojiTargetId(emojiTargetId === folder.id ? null : folder.id)}
+                  onRename={() => {
                     setRenamingId(folder.id);
                     setRenameValue(folder.name);
                   }}
-                  title="Rename"
-                >
-                  ✎
-                </button>
-                <button
-                  className="tile-action-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete('folder', folder.id);
-                  }}
-                  title="Delete"
-                >
-                  x
-                </button>
+                  onDelete={() => handleDelete('folder', folder.id)}
+                />
               </div>
               <span className="file-tile-icon">{folder.icon ?? '📁'}</span>
               {emojiTargetId === folder.id && (
@@ -370,26 +341,14 @@ export function FileBrowser({
               onDragStart={(e) => startDrag(e, { kind: 'file', id: file.id })}
             >
               <div className="tile-actions">
-                <button
-                  className="tile-action-btn"
-                  onClick={() => setEmojiTargetId(emojiTargetId === file.id ? null : file.id)}
-                  title="Change emoji"
-                >
-                  😀
-                </button>
-                <button
-                  className="tile-action-btn"
-                  onClick={() => {
+                <ItemActionsMenu
+                  onChangeEmoji={() => setEmojiTargetId(emojiTargetId === file.id ? null : file.id)}
+                  onRename={() => {
                     setRenamingId(file.id);
                     setRenameValue(file.name);
                   }}
-                  title="Rename"
-                >
-                  ✎
-                </button>
-                <button className="tile-action-btn" onClick={() => handleDelete('file', file.id)} title="Delete">
-                  x
-                </button>
+                  onDelete={() => handleDelete('file', file.id)}
+                />
               </div>
               <button className="file-tile" onClick={() => handleTileOpen(file)} title={file.name}>
                 <span className="file-tile-icon">{file.icon ?? KIND_ICON[file.kind]}</span>

@@ -37,6 +37,7 @@ export async function createFolder(name: string, parentId: string): Promise<Fold
 export async function addFile(file: File, folderId: string): Promise<FileEntry> {
   const db = await getDb();
   const id = newId();
+  const now = Date.now();
   const entry: FileEntry = {
     id,
     name: file.name,
@@ -44,7 +45,9 @@ export async function addFile(file: File, folderId: string): Promise<FileEntry> 
     kind: detectKind(file),
     mimeType: file.type,
     size: file.size,
-    dateAdded: Date.now(),
+    dateAdded: now,
+    dateModified: now,
+    lastAccessedAt: now,
     tags: [],
   };
   const tx = db.transaction(['files', 'blobs'], 'readwrite');
@@ -63,14 +66,18 @@ export async function updateFileBlob(id: string, blob: Blob): Promise<void> {
   const db = await getDb();
   const file = await db.get('files', id);
   const tx = db.transaction(['files', 'blobs'], 'readwrite');
-  if (file) await tx.objectStore('files').put({ ...file, size: blob.size });
+  if (file) await tx.objectStore('files').put({ ...file, size: blob.size, dateModified: Date.now() });
   await tx.objectStore('blobs').put(blob, id);
   await tx.done;
 }
 
+export const DEFAULT_CANVAS_WIDTH = 1400;
+export const DEFAULT_CANVAS_HEIGHT = 1800;
+
 export async function createNote(name: string, folderId: string): Promise<FileEntry> {
   const db = await getDb();
   const id = newId();
+  const now = Date.now();
   const blob = new Blob([''], { type: 'application/json' });
   const entry: FileEntry = {
     id,
@@ -79,7 +86,9 @@ export async function createNote(name: string, folderId: string): Promise<FileEn
     kind: 'note',
     mimeType: 'application/json',
     size: blob.size,
-    dateAdded: Date.now(),
+    dateAdded: now,
+    dateModified: now,
+    lastAccessedAt: now,
     tags: [],
   };
   const tx = db.transaction(['files', 'blobs'], 'readwrite');
@@ -89,9 +98,15 @@ export async function createNote(name: string, folderId: string): Promise<FileEn
   return entry;
 }
 
-export async function createCanvas(name: string, folderId: string): Promise<FileEntry> {
+export async function createCanvas(
+  name: string,
+  folderId: string,
+  width: number = DEFAULT_CANVAS_WIDTH,
+  height: number = DEFAULT_CANVAS_HEIGHT,
+): Promise<FileEntry> {
   const db = await getDb();
   const id = newId();
+  const now = Date.now();
   const blob = new Blob([''], { type: 'application/json' });
   const entry: FileEntry = {
     id,
@@ -100,7 +115,11 @@ export async function createCanvas(name: string, folderId: string): Promise<File
     kind: 'canvas',
     mimeType: 'application/json',
     size: blob.size,
-    dateAdded: Date.now(),
+    dateAdded: now,
+    dateModified: now,
+    lastAccessedAt: now,
+    canvasWidth: width,
+    canvasHeight: height,
     tags: [],
   };
   const tx = db.transaction(['files', 'blobs'], 'readwrite');
@@ -121,7 +140,14 @@ export async function renameFile(id: string, name: string): Promise<void> {
   const db = await getDb();
   const file = await db.get('files', id);
   if (!file) return;
-  await db.put('files', { ...file, name });
+  await db.put('files', { ...file, name, dateModified: Date.now() });
+}
+
+export async function touchFileAccess(id: string): Promise<void> {
+  const db = await getDb();
+  const file = await db.get('files', id);
+  if (!file) return;
+  await db.put('files', { ...file, lastAccessedAt: Date.now() });
 }
 
 export async function setFolderIcon(id: string, icon: string): Promise<void> {
