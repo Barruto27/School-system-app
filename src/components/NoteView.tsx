@@ -4,14 +4,17 @@ import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { getFileBlob, updateFileBlob } from '../storage/fileRepo';
+import { getFileBlob, syncOutgoingLinks, updateFileBlob } from '../storage/fileRepo';
 import { EditableTitle } from './EditableTitle';
 import { exportNoteToDocx } from '../export/exportDocx';
+import { FileLinkNode } from '../notes/FileLinkNode';
+import { FileLinkPicker } from './FileLinkPicker';
 
 interface NoteViewProps {
   fileId: string;
   fileName: string;
   onRename: (name: string) => void;
+  onNavigateToFile: (fileId: string) => void;
 }
 
 const SAVE_DEBOUNCE_MS = 500;
@@ -25,9 +28,25 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
+interface JsonNode {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  content?: JsonNode[];
+}
+
+function collectLinkTargetIds(node: JsonNode): string[] {
+  const ids: string[] = [];
+  if (node.type === 'fileLink' && typeof node.attrs?.targetId === 'string') {
+    ids.push(node.attrs.targetId);
+  }
+  for (const child of node.content ?? []) ids.push(...collectLinkTargetIds(child));
+  return ids;
+}
+
+export function NoteView({ fileId, fileName, onRename, onNavigateToFile }: NoteViewProps) {
   const [loaded, setLoaded] = useState(false);
   const [exportingDocx, setExportingDocx] = useState(false);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const saveTimeout = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -37,6 +56,7 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
       Image.configure({ inline: false, allowBase64: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
+      FileLinkNode,
     ],
     content: '',
     autofocus: false,
@@ -72,11 +92,24 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
     onUpdate: ({ editor }) => {
       if (saveTimeout.current) window.clearTimeout(saveTimeout.current);
       saveTimeout.current = window.setTimeout(() => {
-        const json = JSON.stringify(editor.getJSON());
-        updateFileBlob(fileId, new Blob([json], { type: 'application/json' }));
+        const docJson = editor.getJSON();
+        updateFileBlob(fileId, new Blob([JSON.stringify(docJson)], { type: 'application/json' }));
+        syncOutgoingLinks(fileId, collectLinkTargetIds(docJson));
       }, SAVE_DEBOUNCE_MS);
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    const onClick = (e: MouseEvent) => {
+      const chip = (e.target as HTMLElement).closest('[data-file-link]');
+      const targetId = chip?.getAttribute('data-target-id');
+      if (targetId) onNavigateToFile(targetId);
+    };
+    dom.addEventListener('click', onClick);
+    return () => dom.removeEventListener('click', onClick);
+  }, [editor, onNavigateToFile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +123,7 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
       try {
         const json = JSON.parse(text);
         editor.commands.setContent(json);
+        syncOutgoingLinks(fileId, collectLinkTargetIds(json));
       } catch {
         // ignore malformed content
       }
@@ -210,6 +244,25 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
                 e.target.value = '';
               }}
             />
+            <div className="file-link-picker-anchor">
+              <button onClick={() => setLinkPickerOpen((v) => !v)} title="Link to another file">
+                🔗
+              </button>
+              {linkPickerOpen && (
+                <FileLinkPicker
+                  excludeFileId={fileId}
+                  onClose={() => setLinkPickerOpen(false)}
+                  onPick={(file) => {
+                    editor
+                      .chain()
+                      .focus()
+                      .insertFileLink({ targetId: file.id, targetName: file.name, targetKind: file.kind })
+                      .run();
+                    setLinkPickerOpen(false);
+                  }}
+                />
+              )}
+            </div>
           </div>
           <div className="toolbar-group">
             <button onClick={handleExportPdf} title="Print or save as PDF">

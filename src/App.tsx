@@ -12,6 +12,8 @@ import { FileBrowser } from './components/FileBrowser';
 import { NoteView } from './components/NoteView';
 import { CanvasView } from './components/CanvasView';
 import { SlideView } from './components/SlideView';
+import { BacklinksPanel } from './components/BacklinksPanel';
+import { GraphView } from './components/GraphView';
 import { AppSidebar, type Nav } from './components/AppSidebar';
 import { HomeView } from './components/HomeView';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -28,6 +30,7 @@ import {
   DEFAULT_CANVAS_WIDTH,
   deleteFile,
   deleteFolder,
+  getFile,
   getFileBlob,
   listFiles,
   listFolders,
@@ -284,6 +287,7 @@ export default function App() {
     return saved >= 180 && saved <= 360 ? saved : 240;
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeName>(loadTheme);
   const [font, setFont] = useState<FontName>(loadFont);
   const [accent, setAccent] = useState<string | null>(loadAccent);
@@ -394,6 +398,11 @@ export default function App() {
 
   const handleOpenRecent = (recent: RecentFile) => handleOpenPage(recent as FileEntry);
 
+  const handleOpenFileById = async (id: string) => {
+    const file = await getFile(id);
+    if (file) handleOpenPage(file);
+  };
+
   const goToBrowse = (next: Nav) => {
     setNav(next);
     setActiveTabId(null);
@@ -490,6 +499,7 @@ export default function App() {
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenGraph={() => setGraphOpen(true)}
         />
         <div className="app-main">
           {openTabs.length > 0 && (
@@ -560,7 +570,12 @@ export default function App() {
                   />
                 )}
                 {doc.kind === 'note' && (
-                  <NoteView fileId={doc.id} fileName={doc.name} onRename={(name) => handleRenameOpenDoc(doc.id, name)} />
+                  <NoteView
+                    fileId={doc.id}
+                    fileName={doc.name}
+                    onRename={(name) => handleRenameOpenDoc(doc.id, name)}
+                    onNavigateToFile={handleOpenFileById}
+                  />
                 )}
                 {doc.kind === 'canvas' && (
                   <CanvasView
@@ -574,6 +589,7 @@ export default function App() {
                 {doc.kind === 'slides' && (
                   <SlideView fileId={doc.id} fileName={doc.name} onRename={(name) => handleRenameOpenDoc(doc.id, name)} />
                 )}
+                <BacklinksPanel fileId={doc.id} active={activeTabId === doc.id} onOpenFile={handleOpenFileById} />
               </div>
             ))}
           </div>
@@ -592,6 +608,15 @@ export default function App() {
       )}
       {canvasDialogFolderId !== null && (
         <CanvasSizeDialog onCancel={() => setCanvasDialogFolderId(null)} onConfirm={confirmNewCanvas} />
+      )}
+      {graphOpen && (
+        <GraphView
+          onClose={() => setGraphOpen(false)}
+          onOpenFile={(id) => {
+            setGraphOpen(false);
+            handleOpenFileById(id);
+          }}
+        />
       )}
       <input
         ref={fileInputRef}

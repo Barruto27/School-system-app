@@ -28,6 +28,7 @@ interface AppSidebarProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onOpenSettings: () => void;
+  onOpenGraph: () => void;
 }
 
 const MIN_WIDTH = 180;
@@ -56,6 +57,7 @@ export function AppSidebar({
   collapsed,
   onToggleCollapsed,
   onOpenSettings,
+  onOpenGraph,
 }: AppSidebarProps) {
   const resizing = useRef(false);
   const navRef = useRef<HTMLElement | null>(null);
@@ -149,6 +151,9 @@ export function AppSidebar({
             ))}
           </nav>
 
+          <button className="sidebar-settings-btn" onClick={onOpenGraph} title="Link graph">
+            🕸️ Graph
+          </button>
           <button className="sidebar-settings-btn" onClick={onOpenSettings} title="Settings">
             ⚙️ Settings
           </button>

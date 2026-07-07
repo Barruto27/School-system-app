@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { ROOT_ID, type FileEntry, type FileKind, type Folder } from './types';
+import { ROOT_ID, type FileEntry, type FileKind, type Folder, type Link } from './types';
 
 function newId(): string {
   return crypto.randomUUID();
@@ -204,9 +204,14 @@ export async function moveFile(id: string, folderId: string): Promise<void> {
 
 export async function deleteFile(id: string): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(['files', 'blobs'], 'readwrite');
+  const [outgoing, incoming] = await Promise.all([
+    db.getAllFromIndex('links', 'bySource', id),
+    db.getAllFromIndex('links', 'byTarget', id),
+  ]);
+  const tx = db.transaction(['files', 'blobs', 'links'], 'readwrite');
   await tx.objectStore('files').delete(id);
   await tx.objectStore('blobs').delete(id);
+  await Promise.all([...outgoing, ...incoming].map((l) => tx.objectStore('links').delete(l.id)));
   await tx.done;
 }
 
@@ -249,4 +254,45 @@ export async function searchFilesByName(query: string): Promise<SearchResult[]> 
     matches.map(async (file) => ({ file, path: await getFolderPath(file.folderId) })),
   );
   return results.sort((a, b) => a.file.name.localeCompare(b.file.name));
+}
+
+export async function getFile(id: string): Promise<FileEntry | undefined> {
+  const db = await getDb();
+  return db.get('files', id);
+}
+
+/** Replaces sourceId's full set of outgoing links with exactly targetIds,
+ * so authoring never has to diff — just report "here's everything I link to now". */
+export async function syncOutgoingLinks(sourceId: string, targetIds: string[]): Promise<void> {
+  const db = await getDb();
+  const existing = await db.getAllFromIndex('links', 'bySource', sourceId);
+  const tx = db.transaction('links', 'readwrite');
+  const wanted = new Set(targetIds);
+  const already = new Set(existing.map((l) => l.targetId));
+  await Promise.all(existing.filter((l) => !wanted.has(l.targetId)).map((l) => tx.store.delete(l.id)));
+  await Promise.all(
+    targetIds
+      .filter((targetId) => !already.has(targetId))
+      .map((targetId) =>
+        tx.store.put({ id: crypto.randomUUID(), sourceId, targetId, createdAt: Date.now() } satisfies Link),
+      ),
+  );
+  await tx.done;
+}
+
+export async function getBacklinks(targetId: string): Promise<FileEntry[]> {
+  const db = await getDb();
+  const links = await db.getAllFromIndex('links', 'byTarget', targetId);
+  const files = await Promise.all(links.map((l) => db.get('files', l.sourceId)));
+  return files.filter((f): f is FileEntry => !!f).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getAllLinks(): Promise<Link[]> {
+  const db = await getDb();
+  return db.getAll('links');
+}
+
+export async function getAllFiles(): Promise<FileEntry[]> {
+  const db = await getDb();
+  return db.getAll('files');
 }

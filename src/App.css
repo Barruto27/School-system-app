@@ -121,6 +121,7 @@
 }
 
 .tab-panel {
+  position: relative;
   flex: 1;
   flex-direction: column;
   min-height: 0;
@@ -2040,4 +2041,223 @@
     box-shadow: none !important;
     border-radius: 0 !important;
   }
+}
+
+.note-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 8px;
+  font-size: 0.9em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--ease);
+}
+
+.note-link-chip:hover {
+  background: var(--panel-overlay);
+}
+
+.file-link-picker-anchor {
+  position: relative;
+  display: inline-block;
+}
+
+.file-link-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: var(--panel-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 30;
+}
+
+.file-link-picker-input {
+  width: 100%;
+}
+
+.file-link-picker-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.file-link-picker-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  padding: 8px 4px;
+}
+
+.file-link-picker-result {
+  justify-content: flex-start;
+  gap: 8px;
+  height: auto;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.file-link-picker-result:hover {
+  background: var(--panel-raised);
+}
+
+.file-link-picker-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.file-link-picker-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.file-link-picker-name {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-link-picker-path {
+  font-size: 10px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlinks-wrap {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 15;
+}
+
+.backlinks-toggle {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--panel-overlay);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.backlinks-toggle:hover {
+  color: var(--text);
+  background: var(--panel-raised);
+}
+
+.backlinks-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--panel-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.backlinks-panel-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+
+.backlinks-empty {
+  color: var(--text-faint);
+  font-size: 12px;
+  margin: 0;
+}
+
+.backlinks-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  justify-content: flex-start;
+}
+
+.backlinks-item:hover {
+  background: var(--panel-raised);
+}
+
+.backlinks-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.graph-view-dialog {
+  width: 620px;
+  max-width: calc(100vw - 40px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 20px 24px 24px;
+}
+
+.graph-svg {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.graph-edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node circle {
+  fill: var(--panel-raised);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  transition: fill 120ms ease;
+}
+
+.graph-node:hover circle {
+  fill: var(--panel-overlay);
+}
+
+.graph-node-icon {
+  font-size: 18px;
+}
+
+.graph-node-label {
+  font-size: 10px;
+  fill: var(--text-muted);
 }

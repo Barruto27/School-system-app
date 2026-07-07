@@ -37,3 +37,12 @@ export interface FileEntry {
    * and cross-linking onto a too-rigid file/folder model later. */
   tags: string[];
 }
+
+/** A directed link authored from inside sourceId's content, pointing at targetId.
+ * Backlinks are just this same table queried by targetId. */
+export interface Link {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  createdAt: number;
+}
