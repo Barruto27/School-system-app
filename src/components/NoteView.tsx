@@ -49,6 +49,8 @@ export function NoteView({ fileId, fileName, onRename, onNavigateToFile }: NoteV
   const [linkPickerOpen, setLinkPickerOpen] = useState(false);
   const saveTimeout = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const onNavigateToFileRef = useRef(onNavigateToFile);
+  onNavigateToFileRef.current = onNavigateToFile;
 
   const editor = useEditor({
     extensions: [
@@ -62,6 +64,15 @@ export function NoteView({ fileId, fileName, onRename, onNavigateToFile }: NoteV
     autofocus: false,
     editorProps: {
       attributes: { class: 'note-editor' },
+      handleClick: (_view, _pos, event) => {
+        const chip = (event.target as HTMLElement).closest('[data-file-link]');
+        const targetId = chip?.getAttribute('data-target-id');
+        if (targetId) {
+          onNavigateToFileRef.current(targetId);
+          return true;
+        }
+        return false;
+      },
       handlePaste: (view, event) => {
         const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
         if (files.length === 0) return false;
@@ -98,18 +109,6 @@ export function NoteView({ fileId, fileName, onRename, onNavigateToFile }: NoteV
       }, SAVE_DEBOUNCE_MS);
     },
   });
-
-  useEffect(() => {
-    if (!editor) return;
-    const dom = editor.view.dom;
-    const onClick = (e: MouseEvent) => {
-      const chip = (e.target as HTMLElement).closest('[data-file-link]');
-      const targetId = chip?.getAttribute('data-target-id');
-      if (targetId) onNavigateToFile(targetId);
-    };
-    dom.addEventListener('click', onClick);
-    return () => dom.removeEventListener('click', onClick);
-  }, [editor, onNavigateToFile]);
 
   useEffect(() => {
     let cancelled = false;

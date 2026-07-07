@@ -398,10 +398,10 @@ export default function App() {
 
   const handleOpenRecent = (recent: RecentFile) => handleOpenPage(recent as FileEntry);
 
-  const handleOpenFileById = async (id: string) => {
+  const handleOpenFileById = useCallback(async (id: string) => {
     const file = await getFile(id);
     if (file) handleOpenPage(file);
-  };
+  }, []);
 
   const goToBrowse = (next: Nav) => {
     setNav(next);
