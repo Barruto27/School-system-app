@@ -14,6 +14,7 @@ type TileSize = 'small' | 'medium' | 'large';
 interface HomeViewProps {
   onNewNote: () => void;
   onNewCanvas: () => void;
+  onNewSlides: () => void;
   onUpload: () => void;
   onCreateFolder: (name: string) => void;
   recentFiles: RecentFile[];
@@ -81,6 +82,7 @@ function sortItems(items: LibItem[], sortKey: SortKey): LibItem[] {
 export function HomeView({
   onNewNote,
   onNewCanvas,
+  onNewSlides,
   onUpload,
   onCreateFolder,
   recentFiles,
@@ -139,6 +141,7 @@ export function HomeView({
   const actions = [
     { label: 'New Note', icon: '🗒️', onClick: onNewNote },
     { label: 'New Canvas', icon: '🎨', onClick: onNewCanvas },
+    { label: 'New Slides', icon: '📊', onClick: onNewSlides },
     { label: 'Upload', icon: '⬆️', onClick: onUpload },
   ];
 
@@ -220,7 +223,13 @@ export function HomeView({
       <div className="home-quick-access">
         <div className="home-quick-access-header">
           <h2>Recently Opened</h2>
-          <AddMenu onCreateFolder={onCreateFolder} onUpload={onUpload} onNewNote={onNewNote} onNewCanvas={onNewCanvas} />
+          <AddMenu
+            onCreateFolder={onCreateFolder}
+            onUpload={onUpload}
+            onNewNote={onNewNote}
+            onNewCanvas={onNewCanvas}
+            onNewSlides={onNewSlides}
+          />
         </div>
         {recentFiles.length === 0 ? (
           <p className="home-quick-access-empty">Files you open will show up here for fast access.</p>

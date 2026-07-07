@@ -11,6 +11,7 @@ import { FindBar } from './components/FindBar';
 import { FileBrowser } from './components/FileBrowser';
 import { NoteView } from './components/NoteView';
 import { CanvasView } from './components/CanvasView';
+import { SlideView } from './components/SlideView';
 import { AppSidebar, type Nav } from './components/AppSidebar';
 import { HomeView } from './components/HomeView';
 import { SettingsPanel } from './components/SettingsPanel';
@@ -20,6 +21,7 @@ import { KIND_ICON } from './storage/icons';
 import {
   addFile,
   createCanvas,
+  createSlides,
   createFolder,
   createNote,
   DEFAULT_CANVAS_HEIGHT,
@@ -78,7 +80,8 @@ interface OpenFile {
 type OpenDoc =
   | { kind: 'pdf'; id: string; name: string; data: ArrayBuffer }
   | { kind: 'note'; id: string; name: string }
-  | { kind: 'canvas'; id: string; name: string; width: number; height: number };
+  | { kind: 'canvas'; id: string; name: string; width: number; height: number }
+  | { kind: 'slides'; id: string; name: string };
 
 function ViewerBody({
   data,
@@ -375,6 +378,8 @@ export default function App() {
         width: file.canvasWidth ?? DEFAULT_CANVAS_WIDTH,
         height: file.canvasHeight ?? DEFAULT_CANVAS_HEIGHT,
       });
+    } else if (file.kind === 'slides') {
+      openTab({ kind: 'slides', id: file.id, name: file.name });
     } else {
       return;
     }
@@ -401,6 +406,13 @@ export default function App() {
 
   const handleNewNoteAtRoot = async () => {
     const entry = await createNote('Untitled Note', ROOT_ID);
+    refreshTopLevel();
+    const blob = await getFileBlob(entry.id);
+    if (blob) handleOpenFile(entry, blob);
+  };
+
+  const handleNewSlidesAtRoot = async () => {
+    const entry = await createSlides('Untitled Slides', ROOT_ID);
     refreshTopLevel();
     const blob = await getFileBlob(entry.id);
     if (blob) handleOpenFile(entry, blob);
@@ -468,6 +480,7 @@ export default function App() {
           onUpload={() => fileInputRef.current?.click()}
           onNewNote={handleNewNoteAtRoot}
           onNewCanvas={() => requestNewCanvas(ROOT_ID)}
+          onNewSlides={handleNewSlidesAtRoot}
           onRenameItem={handleRenameItem}
           onDeleteItem={handleDeleteItem}
           onSetIcon={handleSetIcon}
@@ -511,6 +524,7 @@ export default function App() {
                   <HomeView
                     onNewNote={handleNewNoteAtRoot}
                     onNewCanvas={() => requestNewCanvas(ROOT_ID)}
+                    onNewSlides={handleNewSlidesAtRoot}
                     onUpload={() => fileInputRef.current?.click()}
                     onCreateFolder={handleNewFolderAtRoot}
                     recentFiles={recentFiles}
@@ -556,6 +570,9 @@ export default function App() {
                     height={doc.height}
                     onRename={(name) => handleRenameOpenDoc(doc.id, name)}
                   />
+                )}
+                {doc.kind === 'slides' && (
+                  <SlideView fileId={doc.id} fileName={doc.name} onRename={(name) => handleRenameOpenDoc(doc.id, name)} />
                 )}
               </div>
             ))}

@@ -18,6 +18,7 @@ interface AppSidebarProps {
   onUpload: () => void;
   onNewNote: () => void;
   onNewCanvas: () => void;
+  onNewSlides: () => void;
   onRenameItem: (kind: 'folder' | 'file', id: string, name: string) => void;
   onDeleteItem: (kind: 'folder' | 'file', id: string) => void;
   onSetIcon: (kind: 'folder' | 'file', id: string, icon: string) => void;
@@ -45,6 +46,7 @@ export function AppSidebar({
   onUpload,
   onNewNote,
   onNewCanvas,
+  onNewSlides,
   onRenameItem,
   onDeleteItem,
   onSetIcon,
@@ -111,6 +113,7 @@ export function AppSidebar({
                 onUpload={onUpload}
                 onNewNote={onNewNote}
                 onNewCanvas={onNewCanvas}
+                onNewSlides={onNewSlides}
               />
               <button className="sidebar-collapse-toggle" onClick={onToggleCollapsed} title="Hide sidebar">
                 «

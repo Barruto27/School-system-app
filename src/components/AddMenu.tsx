@@ -5,11 +5,20 @@ interface AddMenuProps {
   onUpload: () => void;
   onNewNote: () => void;
   onNewCanvas: () => void;
+  onNewSlides: () => void;
   folderLabel?: string;
   className?: string;
 }
 
-export function AddMenu({ onCreateFolder, onUpload, onNewNote, onNewCanvas, folderLabel = 'Category', className }: AddMenuProps) {
+export function AddMenu({
+  onCreateFolder,
+  onUpload,
+  onNewNote,
+  onNewCanvas,
+  onNewSlides,
+  folderLabel = 'Category',
+  className,
+}: AddMenuProps) {
   const [open, setOpen] = useState(false);
   const [namingFolder, setNamingFolder] = useState(false);
   const [folderName, setFolderName] = useState('');
@@ -89,6 +98,14 @@ export function AddMenu({ onCreateFolder, onUpload, onNewNote, onNewCanvas, fold
                 }}
               >
                 🎨 Canvas
+              </button>
+              <button
+                onClick={() => {
+                  onNewSlides();
+                  closeAll();
+                }}
+              >
+                📊 Slides
               </button>
             </>
           )}

@@ -129,6 +129,30 @@ export async function createCanvas(
   return entry;
 }
 
+export async function createSlides(name: string, folderId: string): Promise<FileEntry> {
+  const db = await getDb();
+  const id = newId();
+  const now = Date.now();
+  const blob = new Blob([''], { type: 'application/json' });
+  const entry: FileEntry = {
+    id,
+    name,
+    folderId,
+    kind: 'slides',
+    mimeType: 'application/json',
+    size: blob.size,
+    dateAdded: now,
+    dateModified: now,
+    lastAccessedAt: now,
+    tags: [],
+  };
+  const tx = db.transaction(['files', 'blobs'], 'readwrite');
+  await tx.objectStore('files').put(entry);
+  await tx.objectStore('blobs').put(blob, id);
+  await tx.done;
+  return entry;
+}
+
 export async function renameFolder(id: string, name: string): Promise<void> {
   const db = await getDb();
   const folder = await db.get('folders', id);

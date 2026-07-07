@@ -5,6 +5,7 @@ import {
   addFile,
   createFolder,
   createNote,
+  createSlides,
   deleteFile,
   deleteFolder,
   getFileBlob,
@@ -109,7 +110,7 @@ export function FileBrowser({
   const handleTileOpen = async (file: FileEntry) => {
     const blob = await getFileBlob(file.id);
     if (!blob) return;
-    if (file.kind === 'pdf' || file.kind === 'note' || file.kind === 'canvas') {
+    if (file.kind === 'pdf' || file.kind === 'note' || file.kind === 'canvas' || file.kind === 'slides') {
       onOpenFile(file, blob);
     } else {
       const url = URL.createObjectURL(blob);
@@ -123,6 +124,14 @@ export function FileBrowser({
 
   const handleNewNote = async () => {
     const entry = await createNote('Untitled Note', currentFolderId);
+    onLibraryChanged();
+    refresh();
+    const blob = await getFileBlob(entry.id);
+    if (blob) onOpenFile(entry, blob);
+  };
+
+  const handleNewSlides = async () => {
+    const entry = await createSlides('Untitled Slides', currentFolderId);
     onLibraryChanged();
     refresh();
     const blob = await getFileBlob(entry.id);
@@ -206,6 +215,7 @@ export function FileBrowser({
           onUpload={() => fileInputRef.current?.click()}
           onNewNote={handleNewNote}
           onNewCanvas={onNewCanvas}
+          onNewSlides={handleNewSlides}
         />
         <input
           ref={fileInputRef}

@@ -12,7 +12,7 @@ export interface Folder {
   icon?: string;
 }
 
-export type FileKind = 'pdf' | 'image' | 'doc' | 'note' | 'canvas' | 'other';
+export type FileKind = 'pdf' | 'image' | 'doc' | 'note' | 'canvas' | 'slides' | 'other';
 
 export interface FileEntry {
   id: string;

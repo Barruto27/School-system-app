@@ -6,5 +6,6 @@ export const KIND_ICON: Record<FileKind, string> = {
   doc: '📝',
   note: '🗒️',
   canvas: '🎨',
+  slides: '📊',
   other: '📦',
 };

@@ -6,6 +6,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { getFileBlob, updateFileBlob } from '../storage/fileRepo';
 import { EditableTitle } from './EditableTitle';
+import { exportNoteToDocx } from '../export/exportDocx';
 
 interface NoteViewProps {
   fileId: string;
@@ -26,6 +27,7 @@ function fileToDataUrl(file: File): Promise<string> {
 
 export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
   const [loaded, setLoaded] = useState(false);
+  const [exportingDocx, setExportingDocx] = useState(false);
   const saveTimeout = useRef<number | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -109,6 +111,19 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
   const insertImage = async (file: File) => {
     const src = await fileToDataUrl(file);
     editor.chain().focus().setImage({ src }).run();
+  };
+
+  const handleExportDocx = async () => {
+    setExportingDocx(true);
+    try {
+      await exportNoteToDocx(editor.getJSON(), fileName);
+    } finally {
+      setExportingDocx(false);
+    }
+  };
+
+  const handleExportPdf = () => {
+    window.print();
   };
 
   const buttons: { label: string; title: string; action: () => void; active: () => boolean }[] = [
@@ -195,6 +210,14 @@ export function NoteView({ fileId, fileName, onRename }: NoteViewProps) {
                 e.target.value = '';
               }}
             />
+          </div>
+          <div className="toolbar-group">
+            <button onClick={handleExportPdf} title="Print or save as PDF">
+              PDF
+            </button>
+            <button onClick={handleExportDocx} disabled={exportingDocx} title="Export as Word document">
+              {exportingDocx ? 'Exporting…' : '.docx'}
+            </button>
           </div>
         </div>
       </div>

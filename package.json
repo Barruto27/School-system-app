@@ -19,9 +19,11 @@
     "@tiptap/pm": "^3.27.2",
     "@tiptap/react": "^3.27.2",
     "@tiptap/starter-kit": "^3.27.2",
+    "docx": "^9.7.1",
     "idb": "^8.0.3",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
